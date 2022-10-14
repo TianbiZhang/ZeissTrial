@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31729.503
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZeissTrial", "3 GetVersion\ZeissTrial.csproj", "{83B57A79-7A47-45CD-8020-D6E6AEFDC3C8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{83B57A79-7A47-45CD-8020-D6E6AEFDC3C8}.Debug|x86.ActiveCfg = Release|x86
+		{83B57A79-7A47-45CD-8020-D6E6AEFDC3C8}.Debug|x86.Build.0 = Release|x86
+		{83B57A79-7A47-45CD-8020-D6E6AEFDC3C8}.Release|x86.ActiveCfg = Release|x86
+		{83B57A79-7A47-45CD-8020-D6E6AEFDC3C8}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D8B75A0A-6DD0-444E-A213-A3E63C555A85}
+	EndGlobalSection
+EndGlobal
