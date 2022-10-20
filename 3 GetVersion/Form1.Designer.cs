@@ -85,16 +85,16 @@
             this.buttonSetNotify = new System.Windows.Forms.Button();
             this.textBoxSetNotify = new System.Windows.Forms.TextBox();
             this.groupBoxDEDInit = new System.Windows.Forms.GroupBox();
-            this.buttonDEDTrial2 = new System.Windows.Forms.Button();
-            this.buttonDEDTrial1 = new System.Windows.Forms.Button();
+            this.buttonDEDTemperatureRead = new System.Windows.Forms.Button();
+            this.buttonDEDThSweep = new System.Windows.Forms.Button();
+            this.buttonCheckDEDConnection = new System.Windows.Forms.Button();
             this.buttonDEDShowThBias = new System.Windows.Forms.Button();
+            this.buttonPIXETVersion = new System.Windows.Forms.Button();
             this.textBoxDEDConsole = new System.Windows.Forms.TextBox();
             this.groupBoxUtils = new System.Windows.Forms.GroupBox();
-            this.buttonDEDTemperatureRead = new System.Windows.Forms.Button();
-            this.buttonDEDBiasSweep = new System.Windows.Forms.Button();
-            this.buttonCheckDEDConnection = new System.Windows.Forms.Button();
-            this.buttonDEDThSweep = new System.Windows.Forms.Button();
-            this.buttonPIXETVersion = new System.Windows.Forms.Button();
+            this.numericUpDownClickWait = new System.Windows.Forms.NumericUpDown();
+            this.textBoxMouseCoords = new System.Windows.Forms.TextBox();
+            this.buttonReadCoords = new System.Windows.Forms.Button();
             this.groupBoxDEDSingleFrame = new System.Windows.Forms.GroupBox();
             this.label1 = new System.Windows.Forms.Label();
             this.buttonDEDSingleTrialCapture = new System.Windows.Forms.Button();
@@ -114,6 +114,7 @@
             this.textBoxDEDSingleTh = new System.Windows.Forms.TextBox();
             this.labelDEDConsole = new System.Windows.Forms.Label();
             this.groupBoxDEDGridCapture = new System.Windows.Forms.GroupBox();
+            this.buttonDEDSelectedGridMouse = new System.Windows.Forms.Button();
             this.buttonDEDGridRecParams = new System.Windows.Forms.Button();
             this.labelDEDSelectedRanges = new System.Windows.Forms.Label();
             this.textBoxDEDSelectedYMax = new System.Windows.Forms.TextBox();
@@ -130,6 +131,7 @@
             this.groupBoxRefreshNotify.SuspendLayout();
             this.groupBoxDEDInit.SuspendLayout();
             this.groupBoxUtils.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownClickWait)).BeginInit();
             this.groupBoxDEDSingleFrame.SuspendLayout();
             this.groupBoxDEDGridCapture.SuspendLayout();
             this.SuspendLayout();
@@ -669,9 +671,11 @@
             // 
             // groupBoxDEDInit
             // 
-            this.groupBoxDEDInit.Controls.Add(this.buttonDEDTrial2);
-            this.groupBoxDEDInit.Controls.Add(this.buttonDEDTrial1);
+            this.groupBoxDEDInit.Controls.Add(this.buttonDEDTemperatureRead);
+            this.groupBoxDEDInit.Controls.Add(this.buttonDEDThSweep);
+            this.groupBoxDEDInit.Controls.Add(this.buttonCheckDEDConnection);
             this.groupBoxDEDInit.Controls.Add(this.buttonDEDShowThBias);
+            this.groupBoxDEDInit.Controls.Add(this.buttonPIXETVersion);
             this.groupBoxDEDInit.Location = new System.Drawing.Point(584, 35);
             this.groupBoxDEDInit.Name = "groupBoxDEDInit";
             this.groupBoxDEDInit.Size = new System.Drawing.Size(240, 153);
@@ -679,25 +683,36 @@
             this.groupBoxDEDInit.TabStop = false;
             this.groupBoxDEDInit.Text = "DED Controls";
             // 
-            // buttonDEDTrial2
+            // buttonDEDTemperatureRead
             // 
-            this.buttonDEDTrial2.Location = new System.Drawing.Point(128, 107);
-            this.buttonDEDTrial2.Name = "buttonDEDTrial2";
-            this.buttonDEDTrial2.Size = new System.Drawing.Size(96, 26);
-            this.buttonDEDTrial2.TabIndex = 2;
-            this.buttonDEDTrial2.Text = "Trial2";
-            this.buttonDEDTrial2.UseVisualStyleBackColor = true;
-            this.buttonDEDTrial2.Click += new System.EventHandler(this.buttonDEDTrial2_Click);
+            this.buttonDEDTemperatureRead.Location = new System.Drawing.Point(128, 55);
+            this.buttonDEDTemperatureRead.Name = "buttonDEDTemperatureRead";
+            this.buttonDEDTemperatureRead.Size = new System.Drawing.Size(96, 36);
+            this.buttonDEDTemperatureRead.TabIndex = 4;
+            this.buttonDEDTemperatureRead.Text = "Read Temperature";
+            this.buttonDEDTemperatureRead.UseVisualStyleBackColor = true;
+            this.buttonDEDTemperatureRead.Click += new System.EventHandler(this.DEDTemperatureRead_Click);
             // 
-            // buttonDEDTrial1
+            // buttonDEDThSweep
             // 
-            this.buttonDEDTrial1.Location = new System.Drawing.Point(11, 106);
-            this.buttonDEDTrial1.Name = "buttonDEDTrial1";
-            this.buttonDEDTrial1.Size = new System.Drawing.Size(97, 29);
-            this.buttonDEDTrial1.TabIndex = 1;
-            this.buttonDEDTrial1.Text = "Trial1";
-            this.buttonDEDTrial1.UseVisualStyleBackColor = true;
-            this.buttonDEDTrial1.Click += new System.EventHandler(this.buttonDEDTrial1_Click);
+            this.buttonDEDThSweep.Enabled = false;
+            this.buttonDEDThSweep.Location = new System.Drawing.Point(11, 100);
+            this.buttonDEDThSweep.Name = "buttonDEDThSweep";
+            this.buttonDEDThSweep.Size = new System.Drawing.Size(97, 33);
+            this.buttonDEDThSweep.TabIndex = 1;
+            this.buttonDEDThSweep.Text = "Thres. Sweep";
+            this.buttonDEDThSweep.UseVisualStyleBackColor = true;
+            this.buttonDEDThSweep.Click += new System.EventHandler(this.buttonDEDThSweep_Click);
+            // 
+            // buttonCheckDEDConnection
+            // 
+            this.buttonCheckDEDConnection.Location = new System.Drawing.Point(128, 19);
+            this.buttonCheckDEDConnection.Name = "buttonCheckDEDConnection";
+            this.buttonCheckDEDConnection.Size = new System.Drawing.Size(96, 31);
+            this.buttonCheckDEDConnection.TabIndex = 2;
+            this.buttonCheckDEDConnection.Text = "Check Conns";
+            this.buttonCheckDEDConnection.UseVisualStyleBackColor = true;
+            this.buttonCheckDEDConnection.Click += new System.EventHandler(this.buttonCheckDEDConnection_Click);
             // 
             // buttonDEDShowThBias
             // 
@@ -708,6 +723,16 @@
             this.buttonDEDShowThBias.Text = "Check Th. and Bias";
             this.buttonDEDShowThBias.UseVisualStyleBackColor = true;
             this.buttonDEDShowThBias.Click += new System.EventHandler(this.buttonDEDShowThBias_Click);
+            // 
+            // buttonPIXETVersion
+            // 
+            this.buttonPIXETVersion.Location = new System.Drawing.Point(11, 19);
+            this.buttonPIXETVersion.Name = "buttonPIXETVersion";
+            this.buttonPIXETVersion.Size = new System.Drawing.Size(97, 31);
+            this.buttonPIXETVersion.TabIndex = 0;
+            this.buttonPIXETVersion.Text = "PIXET Version";
+            this.buttonPIXETVersion.UseVisualStyleBackColor = true;
+            this.buttonPIXETVersion.Click += new System.EventHandler(this.buttonPIXETVersion_Click);
             // 
             // textBoxDEDConsole
             // 
@@ -721,11 +746,9 @@
             // 
             // groupBoxUtils
             // 
-            this.groupBoxUtils.Controls.Add(this.buttonDEDTemperatureRead);
-            this.groupBoxUtils.Controls.Add(this.buttonDEDBiasSweep);
-            this.groupBoxUtils.Controls.Add(this.buttonCheckDEDConnection);
-            this.groupBoxUtils.Controls.Add(this.buttonDEDThSweep);
-            this.groupBoxUtils.Controls.Add(this.buttonPIXETVersion);
+            this.groupBoxUtils.Controls.Add(this.numericUpDownClickWait);
+            this.groupBoxUtils.Controls.Add(this.textBoxMouseCoords);
+            this.groupBoxUtils.Controls.Add(this.buttonReadCoords);
             this.groupBoxUtils.Location = new System.Drawing.Point(843, 36);
             this.groupBoxUtils.Name = "groupBoxUtils";
             this.groupBoxUtils.Size = new System.Drawing.Size(337, 152);
@@ -733,55 +756,42 @@
             this.groupBoxUtils.TabStop = false;
             this.groupBoxUtils.Text = "DED Utilities";
             // 
-            // buttonDEDTemperatureRead
+            // numericUpDownClickWait
             // 
-            this.buttonDEDTemperatureRead.Location = new System.Drawing.Point(122, 54);
-            this.buttonDEDTemperatureRead.Name = "buttonDEDTemperatureRead";
-            this.buttonDEDTemperatureRead.Size = new System.Drawing.Size(90, 36);
-            this.buttonDEDTemperatureRead.TabIndex = 4;
-            this.buttonDEDTemperatureRead.Text = "Read Temperature";
-            this.buttonDEDTemperatureRead.UseVisualStyleBackColor = true;
-            this.buttonDEDTemperatureRead.Click += new System.EventHandler(this.DEDTemperatureRead_Click);
+            this.numericUpDownClickWait.DecimalPlaces = 1;
+            this.numericUpDownClickWait.Location = new System.Drawing.Point(271, 22);
+            this.numericUpDownClickWait.Maximum = new decimal(new int[] {
+            10,
+            0,
+            0,
+            0});
+            this.numericUpDownClickWait.Name = "numericUpDownClickWait";
+            this.numericUpDownClickWait.Size = new System.Drawing.Size(45, 20);
+            this.numericUpDownClickWait.TabIndex = 2;
+            this.numericUpDownClickWait.Value = new decimal(new int[] {
+            40,
+            0,
+            0,
+            65536});
             // 
-            // buttonDEDBiasSweep
+            // textBoxMouseCoords
             // 
-            this.buttonDEDBiasSweep.Location = new System.Drawing.Point(122, 97);
-            this.buttonDEDBiasSweep.Name = "buttonDEDBiasSweep";
-            this.buttonDEDBiasSweep.Size = new System.Drawing.Size(90, 33);
-            this.buttonDEDBiasSweep.TabIndex = 3;
-            this.buttonDEDBiasSweep.Text = "Bias Sweep";
-            this.buttonDEDBiasSweep.UseVisualStyleBackColor = true;
-            this.buttonDEDBiasSweep.Click += new System.EventHandler(this.buttonDEDBiasSweep_Click);
+            this.textBoxMouseCoords.Location = new System.Drawing.Point(152, 22);
+            this.textBoxMouseCoords.Name = "textBoxMouseCoords";
+            this.textBoxMouseCoords.ReadOnly = true;
+            this.textBoxMouseCoords.Size = new System.Drawing.Size(113, 20);
+            this.textBoxMouseCoords.TabIndex = 1;
+            this.textBoxMouseCoords.Text = "Not set";
             // 
-            // buttonCheckDEDConnection
+            // buttonReadCoords
             // 
-            this.buttonCheckDEDConnection.Location = new System.Drawing.Point(6, 54);
-            this.buttonCheckDEDConnection.Name = "buttonCheckDEDConnection";
-            this.buttonCheckDEDConnection.Size = new System.Drawing.Size(92, 37);
-            this.buttonCheckDEDConnection.TabIndex = 2;
-            this.buttonCheckDEDConnection.Text = "Check DED Connections";
-            this.buttonCheckDEDConnection.UseVisualStyleBackColor = true;
-            this.buttonCheckDEDConnection.Click += new System.EventHandler(this.buttonCheckDEDConnection_Click);
-            // 
-            // buttonDEDThSweep
-            // 
-            this.buttonDEDThSweep.Location = new System.Drawing.Point(6, 97);
-            this.buttonDEDThSweep.Name = "buttonDEDThSweep";
-            this.buttonDEDThSweep.Size = new System.Drawing.Size(92, 33);
-            this.buttonDEDThSweep.TabIndex = 1;
-            this.buttonDEDThSweep.Text = "Thres. Sweep";
-            this.buttonDEDThSweep.UseVisualStyleBackColor = true;
-            this.buttonDEDThSweep.Click += new System.EventHandler(this.buttonDEDThSweep_Click);
-            // 
-            // buttonPIXETVersion
-            // 
-            this.buttonPIXETVersion.Location = new System.Drawing.Point(6, 17);
-            this.buttonPIXETVersion.Name = "buttonPIXETVersion";
-            this.buttonPIXETVersion.Size = new System.Drawing.Size(92, 31);
-            this.buttonPIXETVersion.TabIndex = 0;
-            this.buttonPIXETVersion.Text = "PIXET Version";
-            this.buttonPIXETVersion.UseVisualStyleBackColor = true;
-            this.buttonPIXETVersion.Click += new System.EventHandler(this.buttonPIXETVersion_Click);
+            this.buttonReadCoords.Location = new System.Drawing.Point(10, 16);
+            this.buttonReadCoords.Name = "buttonReadCoords";
+            this.buttonReadCoords.Size = new System.Drawing.Size(134, 31);
+            this.buttonReadCoords.TabIndex = 0;
+            this.buttonReadCoords.Text = "Read Coordinates";
+            this.buttonReadCoords.UseVisualStyleBackColor = true;
+            this.buttonReadCoords.Click += new System.EventHandler(this.buttonReadCoords_Click);
             // 
             // groupBoxDEDSingleFrame
             // 
@@ -819,6 +829,7 @@
             // 
             // buttonDEDSingleTrialCapture
             // 
+            this.buttonDEDSingleTrialCapture.Enabled = false;
             this.buttonDEDSingleTrialCapture.Location = new System.Drawing.Point(161, 209);
             this.buttonDEDSingleTrialCapture.Name = "buttonDEDSingleTrialCapture";
             this.buttonDEDSingleTrialCapture.Size = new System.Drawing.Size(138, 27);
@@ -887,7 +898,7 @@
             this.textBoxDEDSingleFrameTime.Name = "textBoxDEDSingleFrameTime";
             this.textBoxDEDSingleFrameTime.Size = new System.Drawing.Size(47, 20);
             this.textBoxDEDSingleFrameTime.TabIndex = 7;
-            this.textBoxDEDSingleFrameTime.Text = "0.002";
+            this.textBoxDEDSingleFrameTime.Text = "0.0005";
             // 
             // labelDEDSingleFrameTime
             // 
@@ -904,7 +915,7 @@
             this.textBoxDEDSingleIntFrameCount.Name = "textBoxDEDSingleIntFrameCount";
             this.textBoxDEDSingleIntFrameCount.Size = new System.Drawing.Size(47, 20);
             this.textBoxDEDSingleIntFrameCount.TabIndex = 5;
-            this.textBoxDEDSingleIntFrameCount.Text = "20";
+            this.textBoxDEDSingleIntFrameCount.Text = "50";
             // 
             // labelDEDSingleIntFrameCount
             // 
@@ -947,7 +958,7 @@
             this.textBoxDEDSingleTh.Name = "textBoxDEDSingleTh";
             this.textBoxDEDSingleTh.Size = new System.Drawing.Size(47, 20);
             this.textBoxDEDSingleTh.TabIndex = 0;
-            this.textBoxDEDSingleTh.Text = "24.50";
+            this.textBoxDEDSingleTh.Text = "3.01";
             // 
             // labelDEDConsole
             // 
@@ -960,6 +971,7 @@
             // 
             // groupBoxDEDGridCapture
             // 
+            this.groupBoxDEDGridCapture.Controls.Add(this.buttonDEDSelectedGridMouse);
             this.groupBoxDEDGridCapture.Controls.Add(this.buttonDEDGridRecParams);
             this.groupBoxDEDGridCapture.Controls.Add(this.labelDEDSelectedRanges);
             this.groupBoxDEDGridCapture.Controls.Add(this.textBoxDEDSelectedYMax);
@@ -970,16 +982,26 @@
             this.groupBoxDEDGridCapture.Controls.Add(this.buttonDEDFullFrameGrid);
             this.groupBoxDEDGridCapture.Location = new System.Drawing.Point(843, 469);
             this.groupBoxDEDGridCapture.Name = "groupBoxDEDGridCapture";
-            this.groupBoxDEDGridCapture.Size = new System.Drawing.Size(336, 118);
+            this.groupBoxDEDGridCapture.Size = new System.Drawing.Size(336, 146);
             this.groupBoxDEDGridCapture.TabIndex = 31;
             this.groupBoxDEDGridCapture.TabStop = false;
             this.groupBoxDEDGridCapture.Text = "Grab Patterns Over a Grid";
             // 
+            // buttonDEDSelectedGridMouse
+            // 
+            this.buttonDEDSelectedGridMouse.Location = new System.Drawing.Point(11, 91);
+            this.buttonDEDSelectedGridMouse.Name = "buttonDEDSelectedGridMouse";
+            this.buttonDEDSelectedGridMouse.Size = new System.Drawing.Size(135, 37);
+            this.buttonDEDSelectedGridMouse.TabIndex = 8;
+            this.buttonDEDSelectedGridMouse.Text = "Grab Over Range w/ Click";
+            this.buttonDEDSelectedGridMouse.UseVisualStyleBackColor = true;
+            this.buttonDEDSelectedGridMouse.Click += new System.EventHandler(this.buttonDEDSelectedGridMouse_Click);
+            // 
             // buttonDEDGridRecParams
             // 
-            this.buttonDEDGridRecParams.Location = new System.Drawing.Point(11, 85);
+            this.buttonDEDGridRecParams.Location = new System.Drawing.Point(161, 91);
             this.buttonDEDGridRecParams.Name = "buttonDEDGridRecParams";
-            this.buttonDEDGridRecParams.Size = new System.Drawing.Size(134, 27);
+            this.buttonDEDGridRecParams.Size = new System.Drawing.Size(138, 27);
             this.buttonDEDGridRecParams.TabIndex = 7;
             this.buttonDEDGridRecParams.Text = "Record Parameters";
             this.buttonDEDGridRecParams.UseVisualStyleBackColor = true;
@@ -1028,7 +1050,7 @@
             // 
             // buttonDEDSelectedGrid
             // 
-            this.buttonDEDSelectedGrid.Location = new System.Drawing.Point(11, 52);
+            this.buttonDEDSelectedGrid.Location = new System.Drawing.Point(11, 59);
             this.buttonDEDSelectedGrid.Name = "buttonDEDSelectedGrid";
             this.buttonDEDSelectedGrid.Size = new System.Drawing.Size(134, 27);
             this.buttonDEDSelectedGrid.TabIndex = 1;
@@ -1038,7 +1060,8 @@
             // 
             // buttonDEDFullFrameGrid
             // 
-            this.buttonDEDFullFrameGrid.Location = new System.Drawing.Point(161, 53);
+            this.buttonDEDFullFrameGrid.Enabled = false;
+            this.buttonDEDFullFrameGrid.Location = new System.Drawing.Point(161, 58);
             this.buttonDEDFullFrameGrid.Name = "buttonDEDFullFrameGrid";
             this.buttonDEDFullFrameGrid.Size = new System.Drawing.Size(138, 27);
             this.buttonDEDFullFrameGrid.TabIndex = 0;
@@ -1097,6 +1120,8 @@
             this.groupBoxRefreshNotify.ResumeLayout(false);
             this.groupBoxDEDInit.ResumeLayout(false);
             this.groupBoxUtils.ResumeLayout(false);
+            this.groupBoxUtils.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownClickWait)).EndInit();
             this.groupBoxDEDSingleFrame.ResumeLayout(false);
             this.groupBoxDEDSingleFrame.PerformLayout();
             this.groupBoxDEDGridCapture.ResumeLayout(false);
@@ -1182,7 +1207,6 @@
         private System.Windows.Forms.Button buttonCheckDEDConnection;
         private System.Windows.Forms.Button buttonDEDSingleTrialCapture;
         private System.Windows.Forms.Button buttonDEDShowThBias;
-        private System.Windows.Forms.Button buttonDEDBiasSweep;
         private System.Windows.Forms.TextBox textBoxStageZ;
         private System.Windows.Forms.TextBox textBoxStageY;
         private System.Windows.Forms.TextBox textBoxStageX;
@@ -1200,9 +1224,11 @@
         private System.Windows.Forms.Label labelFrameGrabFileName;
         private System.Windows.Forms.TextBox textBoxFrameGrabFileName;
         private System.Windows.Forms.Button buttonDEDTemperatureRead;
-        private System.Windows.Forms.Button buttonDEDTrial2;
-        private System.Windows.Forms.Button buttonDEDTrial1;
         private System.Windows.Forms.Button buttonAbort;
+        private System.Windows.Forms.NumericUpDown numericUpDownClickWait;
+        private System.Windows.Forms.TextBox textBoxMouseCoords;
+        private System.Windows.Forms.Button buttonReadCoords;
+        private System.Windows.Forms.Button buttonDEDSelectedGridMouse;
     }
 }
 

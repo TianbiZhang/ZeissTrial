@@ -71,6 +71,7 @@
     <Reference Include="Microsoft.Threading.Tasks.Extensions.Desktop, Version=1.0.168.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Bcl.Async.1.0.168\lib\net40\Microsoft.Threading.Tasks.Extensions.Desktop.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Python.Runtime, Version=2.5.2.0, Culture=neutral, processorArchitecture=x86">
       <HintPath>..\packages\pythonnet_py37_win_x86.2.5.2\lib\net40\Python.Runtime.dll</HintPath>
     </Reference>

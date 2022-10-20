@@ -99,9 +99,7 @@ Please note that in order to change the "N" value for noise reduction, the user 
 
 - Please make sure that the versions of the SmartSEM remoting interface are synchronized for the client and the server. Otherwise a mnemonic error will be reported and will affect functions using the function "Set" and "Excecute".
 
-- As we move on to asynchronized programming for some functions to incorporate the "Abort" button, the progress bar is temporarily not functioning. This will be addressed in a future update.
-
-- Quick Grab: there is no programming solution to the bit-format of the image grabbed (e.g. 8-bit gray, 16-bit gray, 24-bit color, etc.), and the user must set the format in advance. A quick way to check the bit of the image is to check its histogram.
+- Quick Grab: because of the way the API works, it is not possible to grab directly 16-bit tiff images.
 
 ## Buttons overview
 
