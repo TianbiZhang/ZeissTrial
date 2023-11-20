@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+//using System.Environment;
 // Insert the API namespace. You must have added a reference to the CZEMApi ActiveX control in Visual Studio before, as described in the SmartSEM Remote API Manual.
 // Set the APILib properties 'Embed Interop types" to False and 'Local copy' to True. 
 using APILib;
@@ -15,6 +16,9 @@ using System.Threading.Tasks; // Needed for async functions
 using System.IO;
 using System.Diagnostics;
 using Microsoft.VisualBasic.Devices;
+using System.Globalization;
+using Microsoft.WindowsAPICodePack.Dialogs;
+
 
 // The main program.
 namespace ZeissTrial
@@ -22,6 +26,7 @@ namespace ZeissTrial
     // Define the windows form application.
     public partial class Form1 : Form
     {
+        
         // Create a new Api object
         Api CZEMApi = new Api();
 
@@ -32,11 +37,15 @@ namespace ZeissTrial
         //---------------------Memory map access
         const UInt32 SECTION_MAP_READ = 0x0004;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA2101:SpecifyMarshalingForPInvokeStringArguments", MessageId = "2")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1060:MovePInvokesToNativeMethodsClass")]
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern IntPtr OpenFileMapping(uint dwDesiredAccess,
                                             bool bInheritHandle,
                                             string lpName);
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1060:MovePInvokesToNativeMethodsClass")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Portability", "CA1901:PInvokeDeclarationsShouldBePortable", MessageId = "4")]
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern IntPtr MapViewOfFile(IntPtr hFileMappingObject,
                                           uint dwDesiredAccess,
@@ -44,9 +53,11 @@ namespace ZeissTrial
                                           uint dwFileOffsetLow,
                                           uint dwNumberOfBytesToMap);
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1060:MovePInvokesToNativeMethodsClass")]
         [DllImport("Kernel32.dll")]
         static extern bool UnmapViewOfFile(IntPtr map);
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1060:MovePInvokesToNativeMethodsClass")]
         [DllImport("kernel32.dll")]
         static extern int CloseHandle(IntPtr hObject);
         //---------------------Memory map access end
@@ -319,35 +330,60 @@ namespace ZeissTrial
         }
 
         //public static string pydirectory = Environment.GetEnvironmentVariables("PATH");
+        public string py37path = "";
 
         // Start of the Windows form (GUI) script
         public Form1()
         {
+            this.StartPosition = FormStartPosition.Manual;
+            this.Location = new Point(20, 320);
+
             InitializeComponent();
 
             //Initialize some displayed values/status
             textBoxInit.Text = "Not initialized";
             textBoxInit.BackColor = Color.Red;
-            textBoxSetNotify.Text = "No notification";
+            textBoxSetNotify.Text = "No notification\r\n";
             //textBoxSetNotify.BackColor = Color.Red;
 
             textBoxMouseCoords.BackColor = Color.Red;
-
+            textBoxGUIStatus.BackColor = Color.Red;
+            textBoxGUIStatus.Text = "GUI off";
 
             // Set the default path for the two browsers
-            string defaultpath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string defaultpath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             textBoxFrameGrabDirectory.Text = defaultpath;
             textBoxDEDDirectory.Text = defaultpath;
+
+            // Set the DED scan coordinate textboxes
+            textBoxDEDGridReg.Text = "Reg Grid not set";
+            textBoxDEDGridRand.Text = "Reg Grid not set";
+            textBoxDEDGridCoords.Text = "Grid coords not set";
+            textBoxDEDGridSpaced.Text = "Grid coords not set";
 
             //Calling Notification for updated status
             CZEMApi.Notify += new _EMApiEvents_NotifyEventHandler(CZEMApi_Notify);
             CZEMApi.NotifyWithCurrentValue += new _EMApiEvents_NotifyWithCurrentValueEventHandler(CZEMApi_NotifyWithCurrentValue);
+
+            //set python3.7 directory
+            string all_paths = Environment.GetEnvironmentVariable("Path");
+            
+            string[] paths = all_paths.Split(new char[1] { Path.PathSeparator });
+
+            foreach (string s in paths)
+            {
+                if (s.Contains("Python37") && !s.Contains("Scripts"))
+                    py37path = s;
+            }
+
+            py37path = py37path + "python.exe";
+
         }
 
-        // Preparations for the asynchronized methods.
-        // Below are functions for updating the status boxes in asynchronized mode.
-        // First, define the delegate method
-        delegate void SetTextCallback(string text);
+    // Preparations for the asynchronized methods.
+    // Below are functions for updating the status boxes in asynchronized mode.
+    // First, define the delegate method
+    delegate void SetTextCallback(string text);
 
         // Function for updating the main notification box
         private void SetTextSetNotify(string text)
@@ -359,7 +395,11 @@ namespace ZeissTrial
 
             }
             else
-                textBoxSetNotify.AppendText($"{text}\r\n");
+            {
+                DateTime localDate = DateTime.Now;
+                textBoxSetNotify.AppendText($"{localDate}: {text}\r\n");
+            }
+               
         }
 
         // Function for updating the DED notification box.
@@ -371,7 +411,10 @@ namespace ZeissTrial
                 Invoke(d, new object[] { text });
             }
             else
-                textBoxDEDConsole.AppendText($"{text}\r\n");
+            {
+                DateTime localDate = DateTime.Now;
+                textBoxDEDConsole.AppendText($"{localDate}: {text}\r\n");
+            }
         }
 
         // Define the canceller for the abort button.
@@ -382,7 +425,7 @@ namespace ZeissTrial
         private void buttonAbort_Click(object sender, EventArgs e)
         {
             _canceller.Cancel();
-            SetTextSetNotify("\r\nProcess aborted!\r\n");
+            SetTextSetNotify("Process aborted!\r\n");
         }
 
         // Code executed when buttonInitialiseCZEMApi is clicked
@@ -801,6 +844,8 @@ namespace ZeissTrial
                     int XPos = 0;
                     _canceller = new CancellationTokenSource();
 
+                    SetTextSetNotify("X Beam Scan started.");
+
                     await TaskEx.Run(() =>
                     {
                         do
@@ -834,7 +879,7 @@ namespace ZeissTrial
 
 
                             if (XPos == vValueX_Max)
-                                SetTextSetNotify("X beam scan done!\r\n");
+                                SetTextSetNotify("X beam scan done!");
 
                         } while (XPos <= vValueX_Max);
 
@@ -910,6 +955,8 @@ namespace ZeissTrial
 
                     _canceller = new CancellationTokenSource();
 
+                    SetTextSetNotify("XY Beam Scan started.");
+
                     await TaskEx.Run(() =>
                     {
                         for (int YPos = 0; YPos <= vValueY_Max; YPos++)
@@ -956,12 +1003,12 @@ namespace ZeissTrial
                         _canceller.Dispose();
                     LoopEnd:
                         {
-                            SetTextSetNotify("Process terminated by user (\"Abort\" pressed). \r\n");
+                            SetTextSetNotify("Process terminated by user (\"Abort\" pressed).");
                             return;
                         }
                     LoopError:
                         {
-                            SetTextSetNotify("Process terminated due to Error. \r\n");
+                            SetTextSetNotify("Process terminated due to Error.");
                             return;
                         }
                     });
@@ -990,6 +1037,8 @@ namespace ZeissTrial
             ButtonCoordsSet = false;
             if (apiInitialised)
             {
+                SetTextSetNotify($"Closing API controls. Remember to fill the log book!");
+
                 // Control must be closed before it is destroyed
                 long lReply = CZEMApi.ClosingControl();
 
@@ -1000,10 +1049,8 @@ namespace ZeissTrial
                     textBoxInit.Text = "Control Closed";
                     textBoxInit.BackColor = Color.Red;
                     apiInitialised = false;
-
-                    MessageBox.Show("Control closed.");
+                    SetTextSetNotify("Control Closed.");
                 }
-
             }
             else
                 MessageBox.Show("API not initialised.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1013,6 +1060,8 @@ namespace ZeissTrial
         {
             if (apiInitialised)
                 MessageBox.Show("API Control not disconnected yet, please close control first!", "API Control Not Closed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            else if (GUIon)
+                MessageBox.Show("Please close the DED GUI first", "DED GUI Not Closed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             else
                 this.Close();
         }
@@ -1150,7 +1199,7 @@ namespace ZeissTrial
                 try
                 {
 
-                    long lResult = CZEMApi.Grab(0, 0, 1024, 768, 0, filepath);
+                    long lResult = CZEMApi.Grab(0, 0, 1024, 768, -1, filepath);
                     if (lResult != 0)
                     {
                         MessageBox.Show("Cannot grab Image to File: " + filepath, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1223,7 +1272,7 @@ namespace ZeissTrial
 
                 int frametime = (int)Math.Round(frametimefloat, 0) + 3 * 1000; //set wait time as frame time + 20 s for enough maneuver time
 
-                SetTextSetNotify($"Image capturing in progress... please wait for {frametime / 1000} seconds.\r\n");
+                SetTextSetNotify($"Image capturing in progress... please wait for {frametime / 1000} seconds.");
 
                 // wait for frame time
                 Thread.Sleep(frametime);
@@ -1232,7 +1281,7 @@ namespace ZeissTrial
                 SEMFrameCapture(strFileName);
 
                 // Generate output in the console and refresh
-                SetTextSetNotify($"Image grabbed to: {ImageFileName}.\r\n");
+                SetTextSetNotify($"Image grabbed to: {strFileName}.");
 
             }
             else
@@ -1241,11 +1290,12 @@ namespace ZeissTrial
 
         private void buttonBrowseFrameGrab_Click(object sender, System.EventArgs e)
         {
-            FolderBrowserDialog dlg = new FolderBrowserDialog();
-            DialogResult res = dlg.ShowDialog();
-            if (res == DialogResult.OK)
+            CommonOpenFileDialog dlg = new CommonOpenFileDialog();
+            dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            dlg.IsFolderPicker = true;
+            if (dlg.ShowDialog() == CommonFileDialogResult.Ok)
             {
-                textBoxFrameGrabDirectory.Text = dlg.SelectedPath;
+                textBoxFrameGrabDirectory.Text = dlg.FileName;
             }
         }
 
@@ -1389,80 +1439,6 @@ namespace ZeissTrial
 
         }
 
-        private void buttonXScanGrabPixelValue_Click(object sender, EventArgs e)
-        {
-            if (apiInitialised)
-            {
-                object vMinValueX = new VariantWrapper((float)0.0f);
-                object vMaxValueX = new VariantWrapper((float)0.0f);
-                object vValueY = new VariantWrapper((float)0.0f);
-
-                // Get parameter limits numeric values 
-                long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
-                ReportError(lReplyX, "XScanGrabPixelValue", "Get Limits");
-
-                long lReplyY = CZEMApi.Get("AP_SPOT_POSN_Y", ref vValueY);
-
-                int vValueX_Max = int.Parse(vMaxValueX.ToString());
-                ReportError(lReplyY, "XScanGrabPixelValue", "Set Value");
-
-                if(lReplyY == 0)
-                {
-                    string pixelfilename = Path.Combine(textBoxFrameGrabDirectory.Text, "XScanPixelValues.txt");
-
-                    DialogResult res = MessageBox.Show("Beam position limits successfully read. " +
-                        $"X Limits: {vMinValueX}-{vMaxValueX}, Y Position: {vValueY}" +
-                        $"\nText File will be saved at: {pixelfilename} " +
-                        "\nLine scan will start in 1 seconds after clicking OK. Please check SmartSEM.", "Confirm Scan", MessageBoxButtons.OKCancel);
-                    if (res == DialogResult.No)
-                        return;
-
-                    Thread.Sleep(1000);
-
-                    // Progress bar control
-                    progressBarScan.Visible = true;
-                    progressBarScan.Minimum = 0;
-                    progressBarScan.Maximum = vValueX_Max + 2;
-                    progressBarScan.Value = 0;
-                    progressBarScan.Step = 1;
-
-                    // Create a list of strings to store the pixel-by-pixel grayscale values.
-                    List<string> pixelvaluearray = new List<string>();
-
-                    for (int XPos = 0; XPos <= vValueX_Max; XPos++)
-                    {
-                        object XPos_loop = new VariantWrapper(XPos.ToString());
-                        object spotvalue = new VariantWrapper((float)0.0f);
-                        long lReply_XPos = CZEMApi.Set("AP_SPOT_POSN_X", ref XPos_loop);
-
-                        ReportError(lReply_XPos, "XScanGrabPixelValue", "Set Value");
-
-                        if (lReply_XPos == 0)
-                        {
-                            long lReplyspotvalue = CZEMApi.Get("AP_SPOT", ref spotvalue);
-                            ReportError(lReply_XPos, "XScanGrabPixelValue-AP_SPOT", "Get Value");
-                            if (lReplyspotvalue == 0)
-                                pixelvaluearray.Add(spotvalue.ToString());
-                            progressBarScan.PerformStep();
-                        }
-
-                    }
-
-                    File.WriteAllLines(pixelfilename, pixelvaluearray);
-                    progressBarScan.PerformStep();
-                    
-                    MessageBox.Show("Scan Complete! File saved at:" + pixelfilename, "Scan Complete", MessageBoxButtons.OK);
-                    textBoxSetNotify.Text += "Scan Complete! File saved at:" + pixelfilename;
-                    progressBarScan.Value = 0;
-                }
-
-            }
-            else
-            {
-                MessageBox.Show("Remote API not initialised.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }        
-
         private async void buttonMagMap_Click(object sender, EventArgs e)
         {
             // This function reads the pixel size at different magnifications and write it to a text file
@@ -1511,6 +1487,8 @@ namespace ZeissTrial
 
                         int Mag = MinMag;
 
+                        SetTextSetNotify("Mag Mapping started.");
+
                         await TaskEx.Run(() =>
                         {
                             do
@@ -1545,7 +1523,11 @@ namespace ZeissTrial
                             } while (Mag <= 200000);
 
                             if (Mag > 200000)
-                                SetTextSetNotify("Magnification mapping complete!\r\n");
+                            {
+                                SetTextSetNotify("Magnification mapping complete!");
+                                SetTextSetNotify($"File saved as {magmapfilename}.");
+                            }
+                                
 
                             _canceller.Dispose();
                         });
@@ -1571,7 +1553,7 @@ namespace ZeissTrial
             string fileName = @"C:\Users\tianbi\Documents\DED_script_new\VersionCheck.py";//later replace with env variable or similar in preamble
 
             Process p = new Process();
-            p.StartInfo = new ProcessStartInfo(@"C:\Users\tianbi\AppData\Local\Programs\Python\Python37\python.exe", fileName)
+            p.StartInfo = new ProcessStartInfo(py37path, fileName)
             {
                 //later replace python directory with env variable or similar
                 RedirectStandardOutput = true,
@@ -1583,17 +1565,20 @@ namespace ZeissTrial
             string output = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
 
-            textBoxDEDConsole.Text += output;
+            SetTextDEDConsole(output);
         }
 
         private void buttonDEDSingleSaveBrowse_Click(object sender, EventArgs e)
         {
-            FolderBrowserDialog dlg = new FolderBrowserDialog();
-            DialogResult res = dlg.ShowDialog();
-            if (res == DialogResult.OK)
+            CommonOpenFileDialog dlg = new CommonOpenFileDialog();
+            dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            dlg.IsFolderPicker = true;
+            if (dlg.ShowDialog() == CommonFileDialogResult.Ok)
             {
-                textBoxDEDDirectory.Text = dlg.SelectedPath;
+                textBoxDEDDirectory.Text = dlg.FileName;
             }
+
+
         }
 
         private void buttonDEDThSweep_Click(object sender, EventArgs e)
@@ -1601,7 +1586,7 @@ namespace ZeissTrial
             string fileName = @"C:\Users\tianbi\Documents\DED_script_new\Threshold_trial.py";
 
             Process p = new Process();
-            p.StartInfo = new ProcessStartInfo(@"C:\Users\tianbi\AppData\Local\Programs\Python\Python37\python.exe", fileName)
+            p.StartInfo = new ProcessStartInfo(py37path, fileName)
             {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -1612,17 +1597,17 @@ namespace ZeissTrial
             string output = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
 
-            textBoxDEDConsole.Text += output;
+            SetTextDEDConsole(output);
         }
 
         private void buttonCheckDEDConnection_Click(object sender, EventArgs e)
         {
-            textBoxDEDConsole.Text+= "Detecting connected DEDs..." + "\r\n";
+            SetTextDEDConsole("Detecting connected DEDs...");
 
             string fileName = @"C:\Users\tianbi\Documents\DED_script_new\DeviceConnectionCheck.py";
 
             Process p = new Process();
-            p.StartInfo = new ProcessStartInfo(@"C:\Users\tianbi\AppData\Local\Programs\Python\Python37\python.exe", fileName)
+            p.StartInfo = new ProcessStartInfo(py37path, fileName)
             {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -1633,8 +1618,7 @@ namespace ZeissTrial
             string output = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
 
-            //textBoxDEDConsole.Text += "\n";
-            textBoxDEDConsole.Text += output;
+            SetTextDEDConsole(output);
         }
 
         private void buttonDEDSingleTrialCapture_Click(object sender, EventArgs e)
@@ -1653,7 +1637,7 @@ namespace ZeissTrial
             string fileName = @"C:\Users\tianbi\Documents\DED_script_new\TrialAcquisition.py";
 
             Process p = new Process();
-            p.StartInfo = new ProcessStartInfo(@"C:\Users\tianbi\AppData\Local\Programs\Python\Python37\python.exe", fileName)
+            p.StartInfo = new ProcessStartInfo(py37path, fileName)
             {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -1665,7 +1649,7 @@ namespace ZeissTrial
             string output = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
 
-            textBoxDEDConsole.Text += output;
+            SetTextDEDConsole(output);
 
         }
 
@@ -1675,7 +1659,7 @@ namespace ZeissTrial
             string filename = @"C:\Users\tianbi\Documents\DED_script_new\IntFrameGrab.py";
 
             Process p = new Process();
-            p.StartInfo = new ProcessStartInfo(@"C:\Users\tianbi\AppData\Local\Programs\Python\Python37\python.exe", filename)
+            p.StartInfo = new ProcessStartInfo(py37path, filename)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -1695,39 +1679,6 @@ namespace ZeissTrial
             SetTextDEDConsole(output);
         }
 
-        private void buttonDEDSingleCapture_Click(object sender, EventArgs e)
-        {
-            // This function reads the DED settings from user inputs and performs an integral capture.
-            // Currently, this is done by excecuting a python script that performs the task and grabbing the output messages to
-            // the C# process (i.e. this program).
-
-            var watch = new Stopwatch();
-
-            watch.Start();
-            
-            string pathname = textBoxDEDDirectory.Text;
-            
-            string identifier = textBoxDEDSingleIdentifier.Text;
-            string ded_threshold = textBoxDEDSingleTh.Text;
-            string ded_bias = textBoxDEDSingleBias.Text;
-            string int_framecount = textBoxDEDSingleIntFrameCount.Text;
-            string int_frametime = textBoxDEDSingleFrameTime.Text;
-
-            //Pattern will be saved as "identifier_th_bias_framesxframetime.h5".
-
-            string directory = textBoxDEDDirectory.Text;
-
-            DEDSingleCapture(ded_threshold, ded_bias, int_framecount, int_frametime, identifier, directory);
-
-            watch.Stop();
-            // add time statistics
-
-            double estimated_time = Convert.ToInt16(int_framecount) * Convert.ToDouble(int_frametime);
-
-            textBoxDEDConsole.Text += $"Total time: {watch.ElapsedMilliseconds} ms";
-
-        }
-
         private void buttonDEDShowThBias_Click(object sender, EventArgs e)
         {
             // This function reads the threshold and bias settings of the DED and output them to the DED console.
@@ -1737,7 +1688,7 @@ namespace ZeissTrial
             string fileName = @"C:\Users\tianbi\Documents\DED_script_new\ReadThBias.py";
 
             Process p = new Process();
-            p.StartInfo = new ProcessStartInfo(@"C:\Users\tianbi\AppData\Local\Programs\Python\Python37\python.exe", fileName)
+            p.StartInfo = new ProcessStartInfo(py37path, fileName)
             {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -1749,7 +1700,7 @@ namespace ZeissTrial
             string output = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
 
-            textBoxDEDConsole.Text += output;
+            SetTextDEDConsole(output);
         }
 
         private async void buttonDEDFullFrameGrid_Click(object sender, EventArgs e)
@@ -1758,115 +1709,7 @@ namespace ZeissTrial
 
             if (apiInitialised)
             {
-                object vMinValueX = new VariantWrapper((float)0.0f);
-                object vMaxValueX = new VariantWrapper((float)0.0f);
-                object vMinValueY = new VariantWrapper((float)0.0f);
-                object vMaxValueY = new VariantWrapper((float)0.0f);
-                object vValueMag = new VariantWrapper((float)0.0f);
-                object vValueSpotSize = new VariantWrapper((float)0.0f);
-
-                // Get parameter limits numeric values 
-                long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
-                long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
-                long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
-                long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
-                int vValueX_Max = int.Parse(vMaxValueX.ToString());
-                int vValueY_Max = int.Parse(vMaxValueY.ToString());
-
-                //string identifier = textBoxDEDSingleIdentifier.Text;
-                string ded_threshold = textBoxDEDSingleTh.Text;
-                string ded_bias = textBoxDEDSingleBias.Text;
-                string int_framecount = textBoxDEDSingleIntFrameCount.Text;
-                string int_frametime = textBoxDEDSingleFrameTime.Text;
-
-                if ((ZeissErrorCode)lReplyX == ZeissErrorCode.API_E_NO_ERROR && (ZeissErrorCode)lReplyY == ZeissErrorCode.API_E_NO_ERROR)
-                {
-                    MessageBox.Show("Frame Size X-Y: " + vMaxValueX.ToString() + "x" + vMaxValueY.ToString() + ". Magnification=" + vValueMag.ToString() + ", pixel/step size =" + vValueSpotSize.ToString() + " m.\n Full frame scan will start in 1 seconds after clicking OK. Please check SmartSEM window.");
-                    Thread.Sleep(1000);
-                    // Progress bar control
-                    progressBarScan.Visible = true;
-                    progressBarScan.Minimum = 0;
-                    progressBarScan.Maximum = (vValueX_Max + 1) * (vValueY_Max + 1);
-                    progressBarScan.Value = 0;
-                    progressBarScan.Step = 1;
-
-                    int identifier_number = 0;
-
-                    string directory = textBoxDEDDirectory.Text;
-
-                    bool breakloop = false;
-
-                    _canceller = new CancellationTokenSource();
-
-                    await TaskEx.Run(() =>
-                    {
-                        for (int YPos = 0; YPos <= vValueY_Max; YPos++)
-                        {
-                            if (breakloop)
-                                goto LoopEnd;
-
-                            object YPos_loop = new VariantWrapper(YPos.ToString());
-
-                            long lReply_YPos = CZEMApi.Set("AP_SPOT_POSN_Y", ref YPos_loop);
-
-                            if (lReply_YPos != 0)
-                            {
-                                ReportError(lReply_YPos, "XYBeamScan_Set X", "Set Value");
-                                goto LoopError;
-                            }
-                            // Show the value, or an error message in case of an error
-
-                            for (int XPos = 0; XPos <= vValueX_Max; XPos++)
-                            {
-                                object XPos_loop = new VariantWrapper(XPos.ToString());
-
-                                long lReply_XPos = CZEMApi.Set("AP_SPOT_POSN_X", ref XPos_loop);
-
-                                if (lReply_XPos != 0)
-                                {
-                                    ReportError(lReply_XPos, "XYBeamScan_Set X", "Set Value");
-                                    return;
-                                }
-
-                                string identifier = "Spot" + identifier_number.ToString();
-
-                                SetTextDEDConsole($"Capturing {identifier}");
-
-                                DEDSingleCapture(ded_threshold, ded_bias, int_framecount, int_frametime, identifier, directory);
-
-                                identifier_number++;
-
-                                progressBarScan.Invoke(new Action(() =>
-                                {
-                                    progressBarScan.PerformStep();
-                                }));
-
-                                if (_canceller.Token.IsCancellationRequested)
-                                {
-                                    breakloop = true;
-                                    break;
-                                }
-                            }
-
-                        }
-                        _canceller.Dispose();
-                    LoopEnd:
-                        {
-                            SetTextDEDConsole("Process terminated by user (\"Abort\" pressed). \r\n");
-                            return;
-                        }
-                    LoopError:
-                        {
-                            SetTextDEDConsole("Process terminated due to Error. \r\n");
-                            return;
-                        }
-                    });
-
-                    MessageBox.Show("Scan complete!", "Scan Complete", MessageBoxButtons.OK);
-                    progressBarScan.Value = 0;
-                }
-                else
-                    MessageBox.Show("Error!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+             
             }
             else
             {
@@ -1874,164 +1717,9 @@ namespace ZeissTrial
             }
         }
 
-        private async void buttonDEDSelectedGrid_Click(object sender, EventArgs e)
+        private void buttonDEDSelectedGrid_Click(object sender, EventArgs e)
         {
-            // This function performs beam scan and DED capture over a user defined pixel grid. 
-            // Limits of the grid and DED parameters are read from user input in text boxes.
             
-            if (apiInitialised)
-            {
-                object vMinValueX = new VariantWrapper((float)0.0f);
-                object vMaxValueX = new VariantWrapper((float)0.0f);
-                object vMinValueY = new VariantWrapper((float)0.0f);
-                object vMaxValueY = new VariantWrapper((float)0.0f);
-                object vValueMag = new VariantWrapper((float)0.0f);
-                object vValueSpotSize = new VariantWrapper((float)0.0f);
-
-                // Get parameter limits numeric values 
-                long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
-                long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
-                long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
-                long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
-                int vValueX_Min = int.Parse(vMinValueX.ToString());
-                int vValueY_Min = int.Parse(vMinValueY.ToString());
-                int vValueX_Max = int.Parse(vMaxValueX.ToString());
-                int vValueY_Max = int.Parse(vMaxValueY.ToString());
-
-                
-                try
-                {
-                    int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
-                    int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
-                    int InputXMaxCheck = int.Parse(textBoxDEDSelectedXMax.Text);
-                    int InputYMaxCheck = int.Parse(textBoxDEDSelectedYMax.Text);
-
-                    if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
-                    {
-                        MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
-                            $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
-                    }
-                }
-                catch (System.FormatException)
-                {
-                    MessageBox.Show($"Error: Your inputs are invalid. X must be within {vValueX_Min} and {vValueX_Max}," +
-                            $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                    //throw new System.FormatException("The input format for one of the range parameters is wrong");
-                }
-
-                int InputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
-                int InputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
-                int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
-                int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
-
-                string ded_threshold = textBoxDEDSingleTh.Text;
-                string ded_bias = textBoxDEDSingleBias.Text;
-                string int_framecount = textBoxDEDSingleIntFrameCount.Text;
-                string int_frametime = textBoxDEDSingleFrameTime.Text;
-
-                if ((ZeissErrorCode)lReplyX == ZeissErrorCode.API_E_NO_ERROR && (ZeissErrorCode)lReplyY == ZeissErrorCode.API_E_NO_ERROR)
-                {
-                    DialogResult res = MessageBox.Show($"Frame Size X-Y: {InputXMax - InputXMin + 1}x{InputYMax - InputYMin + 1}. Magnification= {vValueMag}, pixel/step size ={vValueSpotSize} m." +
-                        $" \n Full frame scan will start in 1 seconds after clicking OK. Please check SmartSEM window.", "Confirm Scan", MessageBoxButtons.OKCancel);
-                    if (res == DialogResult.Cancel)
-                        return;
-
-                    Thread.Sleep(1000);
-                    // Progress bar control
-                    //progressBarScan.Visible = true;
-                    //progressBarScan.Minimum = 0;
-                    //progressBarScan.Maximum = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
-                    //progressBarScan.Value = 0;
-                    //progressBarScan.Step = 1;                    
-
-                    int identifier_number = 1;
-                    int total_points = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
-                    string directory = textBoxDEDDirectory.Text;
-                    
-                    _canceller = new CancellationTokenSource();
-                    bool breakloop = false;
-
-                    var watch = new Stopwatch();
-                    watch.Start();
-
-                    await TaskEx.Run(() =>
-                    {
-                        for (int YPos = InputYMin; YPos <= InputYMax; YPos++)
-                        {
-                            if (breakloop)
-                                break;
-
-                            object YPos_loop = new VariantWrapper(YPos.ToString());
-
-                            long lReply_YPos = CZEMApi.Set("AP_SPOT_POSN_Y", ref YPos_loop);
-
-                            if (lReply_YPos != 0)
-                            {
-                                ReportError(lReply_YPos, "XYBeamScan_Set X", "Set Value");
-                                breakloop = true;
-                                SetTextDEDConsole("Process terminated due to error. \r\n");
-                                break;
-                            }
-                            // Show the value, or an error message in case of an error
-
-                            for (int XPos = InputXMin; XPos <= InputXMax; XPos++)
-                            {
-                                object XPos_loop = new VariantWrapper(XPos.ToString());
-
-                                long lReply_XPos = CZEMApi.Set("AP_SPOT_POSN_X", ref XPos_loop);
-
-                                if (lReply_XPos != 0)
-                                {
-                                    ReportError(lReply_XPos, "XYBeamScan_Set X", "Set Value");
-                                    breakloop = true;
-                                    SetTextDEDConsole("Process terminated due to error. \r\n");
-                                    break;
-                                }
-
-                                string identifier = "Spot" + identifier_number.ToString();
-
-                                SetTextDEDConsole($"Capturing {identifier}");
-
-                                DEDSingleCapture(ded_threshold, ded_bias, int_framecount, int_frametime, identifier, directory);
-
-                                SetTextDEDConsole($"Spot {identifier_number}/{total_points} done!");
-                                
-                                identifier_number++;
-
-                                progressBarScan.Invoke(new Action(() =>
-                                {
-                                    progressBarScan.PerformStep();
-                                }));
-
-                                Thread.Sleep(250);
-
-                                if (_canceller.Token.IsCancellationRequested)
-                                {
-                                    breakloop = true;
-                                    SetTextDEDConsole("Process terminated by user (\"Abort\" pressed). \r\n");
-                                    break;
-                                }
-                            }
-
-                        }
-                        _canceller.Dispose();
-                    });
-
-                    watch.Stop();
-
-                    SetTextDEDConsole($"Scan complete! Total time is {watch.ElapsedMilliseconds / 1000} s");
-                    MessageBox.Show("Scan complete!", "Scan Complete", MessageBoxButtons.OK);
-                    //progressBarScan.Value = 0;
-                }
-                else
-                    MessageBox.Show("Error!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            else
-            {
-                MessageBox.Show("Remote API not initialised.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         private void buttonDEDGridRecParams_Click(object sender, EventArgs e)
@@ -2059,55 +1747,7 @@ namespace ZeissTrial
                 int outputXMin, outputXMax, outputYMin, outputYMax;
                 //int outputXMin = 0 , outputXMax = 0, outputYMin = 0, outputYMax = 0;
 
-                DialogResult fullframescan = MessageBox.Show("Is this a full frame scan? Click \"Yes\" for full frame scan," +
-                    " \"No\" for selected area scan", "Confirm Scan Type", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-                switch ((DialogResult)fullframescan)
-                {
-                    case DialogResult.Yes:
-                        {
-                            outputXMin = vValueX_Min;
-                            outputXMax = vValueX_Max;
-                            outputYMin = vValueY_Min;
-                            outputYMax = vValueY_Max;
-                            break;
-                        }
-                    case DialogResult.No:
-                        {
-                            try
-                            {
-                                int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
-                                int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
-                                int InputXMaxCheck = int.Parse(textBoxDEDSelectedXMax.Text);
-                                int InputYMaxCheck = int.Parse(textBoxDEDSelectedYMax.Text);
-
-                                if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
-                                {
-                                    MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
-                                        $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                    return;
-                                }
-                            }
-                            catch (System.FormatException)
-                            {
-                                MessageBox.Show($"Error: Your inputs are invalid. X must be within {vValueX_Min} and {vValueX_Max}," +
-                                        $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                return;
-                                //throw new System.FormatException("The input format for one of the range parameters is wrong");
-                            }
-
-                            outputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
-                            outputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
-                            outputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
-                            outputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
-                            break;
-                        }
-                    case DialogResult.Cancel:
-                        return;
-                    default:
-                        return;
-                }
-
-                int total_points = (outputXMax - outputXMin + 1) * (outputYMax - outputYMin + 1);
+                
 
                 object vValueMag = new VariantWrapper((float)0.0f);
                 object vValueSpotSize = new VariantWrapper((float)0.0f);
@@ -2116,38 +1756,66 @@ namespace ZeissTrial
                 object vValueStageZ = new VariantWrapper((float)0.0f);
 
                 // Get magnification, pixel size and stage positions 
-
                 long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
                 long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
                 long lReplyStageX = CZEMApi.Get("AP_STAGE_AT_X", ref vValueStageX);
                 long lReplyStageY = CZEMApi.Get("AP_STAGE_AT_Y", ref vValueStageY);
                 long lReplyStageZ = CZEMApi.Get("AP_STAGE_AT_Z", ref vValueStageZ);
 
-                // Read input DED parameters
-
-                string ded_threshold = textBoxDEDSingleTh.Text;
-                string ded_bias = textBoxDEDSingleBias.Text;
-                string int_framecount = textBoxDEDSingleIntFrameCount.Text;
-                string int_frametime = textBoxDEDSingleFrameTime.Text;
+                outputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
+                outputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
 
                 List<string> params_array = new List<string>();
-                params_array.Add(outputXMin.ToString());
-                params_array.Add(outputXMax.ToString());
-                params_array.Add(outputYMin.ToString());
-                params_array.Add(outputYMax.ToString());
-                params_array.Add(total_points.ToString());
-                params_array.Add(vValueMag.ToString());
-                params_array.Add(vValueSpotSize.ToString());
-                params_array.Add(vValueStageX.ToString());
-                params_array.Add(vValueStageY.ToString());
-                params_array.Add(vValueStageZ.ToString());
-                params_array.Add(ded_threshold);
-                params_array.Add(ded_bias);
-                params_array.Add(int_framecount);
-                params_array.Add(int_frametime);
+
+                if (RegGridReady)
+                {
+                    params_array.Add($"Coordinates XMin, XMax, YMin, YMax:");
+                    outputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+                    outputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+                    int total_points = (outputXMax - outputXMin + 1) * (outputYMax - outputYMin + 1);
+                    params_array.Add(outputXMin.ToString());
+                    params_array.Add(outputXMax.ToString());
+                    params_array.Add(outputYMin.ToString());
+                    params_array.Add(outputYMax.ToString());
+                    params_array.Add(total_points.ToString());
+                    params_array.Add("Scan type = regular grid (pixel by pixel)");
+                }
+                if (RandGridReady)
+                {
+                    params_array.Add($"Coordinates XMin, XMax, YMin, YMax:");
+                    outputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+                    outputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+                    int total_points = (outputXMax - outputXMin + 1) * (outputYMax - outputYMin + 1);
+                    params_array.Add(outputXMin.ToString());
+                    params_array.Add(outputXMax.ToString());
+                    params_array.Add(outputYMin.ToString());
+                    params_array.Add(outputYMax.ToString());
+                    params_array.Add(total_points.ToString());
+                    params_array.Add("Scan type = random sequence over a regular grid (pixel by pixel)");
+                }
+                if (SpacedGridReady)
+                {
+
+                    int vValueXSpace = int.Parse(textBoxXGridSpacing.Text);
+                    int vValueYSpace = int.Parse(textBoxYGridSpacing.Text);
+                    int vValueXPoints = int.Parse(textBoxXSpacingNum.Text);
+                    int vValueYPoints = int.Parse(textBoxYSpacingNum.Text);
+
+                    int total_points = vValueXPoints * vValueYPoints;
+
+                    params_array.Add("Scan type = regular scan over a spaced grid");
+                    params_array.Add($"X start: {outputXMin}, X spacing={vValueXSpace}, Y start: {outputYMin}, Y spacing={vValueYSpace}");
+                    params_array.Add($"Grid points: {vValueXPoints}x{vValueYPoints}");
+
+                }
+                
+                params_array.Add($"Mag: {vValueMag}x");
+                params_array.Add($"Pixel size (m): {vValueSpotSize.ToString()}");
+                params_array.Add($"Stage X (m): {vValueStageX.ToString()}");
+                params_array.Add($"Stage Y (m): {vValueStageY.ToString()}");
+                params_array.Add($"Stage Z (m): {vValueStageZ.ToString()}");
 
                 string paramsfilename = Path.Combine(textBoxDEDDirectory.Text, "Scan_Parameters.txt");
-
 
                 try
                 {
@@ -2179,7 +1847,7 @@ namespace ZeissTrial
             string fileName = @"C:\Users\tianbi\Documents\DED_script_new\ReadTemperature.py";
 
             Process p = new Process();
-            p.StartInfo = new ProcessStartInfo(@"C:\Users\tianbi\AppData\Local\Programs\Python\Python37\python.exe", fileName)
+            p.StartInfo = new ProcessStartInfo(py37path, fileName)
             {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -2198,157 +1866,167 @@ namespace ZeissTrial
         {
             // This function performs beam scan and DED capture over a user defined pixel grid. 
             // Limits of the grid and DED parameters are read from user input in text boxes.
-            if (!ButtonCoordsSet)
-            {
-                MessageBox.Show($"Error: mouse coordinates not set!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+
             if (apiInitialised)
             {
-                object vMinValueX = new VariantWrapper((float)0.0f);
-                object vMaxValueX = new VariantWrapper((float)0.0f);
-                object vMinValueY = new VariantWrapper((float)0.0f);
-                object vMaxValueY = new VariantWrapper((float)0.0f);
-                object vValueMag = new VariantWrapper((float)0.0f);
-                object vValueSpotSize = new VariantWrapper((float)0.0f);
-
-                // Get parameter limits numeric values 
-                long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
-                long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
-                long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
-                long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
-                int vValueX_Min = int.Parse(vMinValueX.ToString());
-                int vValueY_Min = int.Parse(vMinValueY.ToString());
-                int vValueX_Max = int.Parse(vMaxValueX.ToString());
-                int vValueY_Max = int.Parse(vMaxValueY.ToString());
-
-
-                try
+                if (RegGridReady)
                 {
-                    int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
-                    int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
-                    int InputXMaxCheck = int.Parse(textBoxDEDSelectedXMax.Text);
-                    int InputYMaxCheck = int.Parse(textBoxDEDSelectedYMax.Text);
 
-                    if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
+                    if (!ButtonCoordsSet)
                     {
-                        MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
-                            $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show($"Error: mouse coordinates not set!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
-                }
-                catch (System.FormatException)
-                {
-                    MessageBox.Show($"Error: Your inputs are invalid. X must be within {vValueX_Min} and {vValueX_Max}," +
-                            $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                    //throw new System.FormatException("The input format for one of the range parameters is wrong");
-                }
 
-                int InputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
-                int InputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
-                int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
-                int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+                    if (!GUIon)
+                    {
+                        MessageBox.Show($"Error: please start the DED GUI first!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
 
-                int total_points = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
-
-                if ((ZeissErrorCode)lReplyX == ZeissErrorCode.API_E_NO_ERROR && (ZeissErrorCode)lReplyY == ZeissErrorCode.API_E_NO_ERROR)
-                {
-                    DialogResult res = MessageBox.Show($"Frame Size X-Y: {InputXMax - InputXMin + 1}x{InputYMax - InputYMin + 1}. Magnification= {vValueMag}, pixel/step size ={vValueSpotSize} m." +
-                        $" \n Full frame scan will start in 1 seconds after clicking OK. Please check SmartSEM window.", "Confirm Scan", MessageBoxButtons.OKCancel);
-                    if (res == DialogResult.Cancel)
+                    DialogResult resinit = MessageBox.Show($"This module will perform the TKD/EBSD scan by moving the spot in this application " +
+                        $"and control the DED in another application by mouse click. You need to set the mouse click position using the \"Read coordinates\" button above " +
+                        $"and provide the start and end spot positions in the textboxes below. \r\nPress OK to continue or cancel to exit.", "Confirm Scan", MessageBoxButtons.OKCancel);
+                    if (resinit == DialogResult.Cancel)
                         return;
 
-                    Thread.Sleep(1000);
-                    // Progress bar control
-                    progressBarScan.Visible = true;
-                    progressBarScan.Minimum = 0;
-                    progressBarScan.Maximum = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
-                    progressBarScan.Value = 0;
-                    progressBarScan.Step = 1;
+                    object vMinValueX = new VariantWrapper((float)0.0f);
+                    object vMaxValueX = new VariantWrapper((float)0.0f);
+                    object vMinValueY = new VariantWrapper((float)0.0f);
+                    object vMaxValueY = new VariantWrapper((float)0.0f);
+                    object vValueMag = new VariantWrapper((float)0.0f);
+                    object vValueSpotSize = new VariantWrapper((float)0.0f);
 
-                    int identifier_number = 1;                    
-                    string directory = textBoxDEDDirectory.Text;
-                    this.Cursor = new Cursor(Cursor.Current.Handle);
-                    int wait_time = Convert.ToInt32(numericUpDownClickWait.Value * 1000); //miliseconds
+                    // Get parameter limits numeric values 
+                    long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
+                    long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
+                    long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
+                    long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
+                    int vValueX_Min = int.Parse(vMinValueX.ToString());
+                    int vValueY_Min = int.Parse(vMinValueY.ToString());
+                    int vValueX_Max = int.Parse(vMaxValueX.ToString());
+                    int vValueY_Max = int.Parse(vMaxValueY.ToString());
 
-                    _canceller = new CancellationTokenSource();
-                    bool breakloop = false;
-
-                    var watch = new Stopwatch();
-                    watch.Start();
-
-                    await TaskEx.Run(() =>
+                    try
                     {
-                        for (int YPos = InputYMin; YPos <= InputYMax; YPos++)
+                        int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
+                        int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
+                        int InputXMaxCheck = int.Parse(textBoxDEDSelectedXMax.Text);
+                        int InputYMaxCheck = int.Parse(textBoxDEDSelectedYMax.Text);
+
+                        if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
                         {
-                            if (breakloop)
-                                break;
+                            MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
+                                $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                    }
+                    catch (System.FormatException)
+                    {
+                        MessageBox.Show($"Error: Your inputs are invalid. X must be within {vValueX_Min} and {vValueX_Max}," +
+                                $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                        //throw new System.FormatException("The input format for one of the range parameters is wrong");
+                    }
 
-                            object YPos_loop = new VariantWrapper(YPos.ToString());
+                    int InputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
+                    int InputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
+                    int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+                    int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
 
-                            long lReply_YPos = CZEMApi.Set("AP_SPOT_POSN_Y", ref YPos_loop);
+                    int total_points = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
 
-                            if (lReply_YPos != 0)
+                    if ((ZeissErrorCode)lReplyX == ZeissErrorCode.API_E_NO_ERROR && (ZeissErrorCode)lReplyY == ZeissErrorCode.API_E_NO_ERROR)
+                    {
+                        DialogResult res = MessageBox.Show($"Frame Size X-Y: {InputXMax - InputXMin + 1}x{InputYMax - InputYMin + 1}. Magnification= {vValueMag}, pixel/step size ={vValueSpotSize} m." +
+                            $" \n Random grid scan will start in 1 seconds after clicking OK. Please check SmartSEM window.", "Confirm Scan", MessageBoxButtons.OKCancel);
+                        if (res == DialogResult.Cancel)
+                            return;
+
+                        Thread.Sleep(1000);
+                        // Progress bar control
+                        progressBarScan.Visible = true;
+                        progressBarScan.Minimum = 0;
+                        progressBarScan.Maximum = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
+                        progressBarScan.Value = 0;
+                        progressBarScan.Step = 1;
+
+                        string directory = textBoxDEDDirectory.Text;
+                        int wait_time = Convert.ToInt32(numericUpDownClickWait.Value * 1000); //miliseconds
+
+                        _canceller = new CancellationTokenSource();
+                        bool breakloop = false;
+
+                        SetTextSetNotify("Selected area scan with DED capture (mouse click) started.");
+
+                        var watch = new Stopwatch();
+                        watch.Start();
+
+                        await TaskEx.Run(() =>
+                        {
+
+                            for (int ID = 0; ID <= total_points - 1; ID++)
                             {
-                                ReportError(lReply_YPos, "XYBeamScan_Set X", "Set Value");
-                                breakloop = true;
-                                SetTextDEDConsole("Process terminated due to error. \r\n");
-                                break;
-                            }
-                            // Show the value, or an error message in case of an error
+                                if (breakloop)
+                                    break;
 
-                            for (int XPos = InputXMin; XPos <= InputXMax; XPos++)
-                            {
-                                object XPos_loop = new VariantWrapper(XPos.ToString());
+                                string identifier = "Spot" + SampleID_array[ID].ToString();
 
-                                long lReply_XPos = CZEMApi.Set("AP_SPOT_POSN_X", ref XPos_loop);
+                                object XPos = new VariantWrapper(XCoord_array[ID].ToString());
+                                object YPos = new VariantWrapper(YCoord_array[ID].ToString());
 
-                                if (lReply_XPos != 0)
+                                long lReply_XPos = CZEMApi.Set("AP_SPOT_POSN_X", ref XPos);
+                                long lReply_YPos = CZEMApi.Set("AP_SPOT_POSN_Y", ref YPos);
+
+                                if (lReply_YPos != 0 || lReply_XPos != 0)
                                 {
-                                    ReportError(lReply_XPos, "XYBeamScan_Set X", "Set Value");
+                                    ReportError(lReply_YPos, "XYBeamScan_Set", "Set Value");
                                     breakloop = true;
-                                    SetTextDEDConsole("Process terminated due to error. \r\n");
+                                    SetTextDEDConsole("Process terminated due to error.");
                                     break;
                                 }
 
-                                string identifier = "Spot" + identifier_number.ToString();
-
+                                
                                 SetTextDEDConsole($"Capturing {identifier}");
 
                                 ClickPosition(PositionButton, wait_time);
 
-                                SetTextDEDConsole($"Spot {identifier_number}/{total_points} done!");
+                                Thread.Sleep(500);
 
-                                identifier_number++;
+                                SetTextDEDConsole($"Spot {ID + 1}/{total_points} done!");
 
                                 progressBarScan.Invoke(new Action(() =>
                                 {
                                     progressBarScan.PerformStep();
                                 }));
 
-                                Thread.Sleep(250);
-
                                 if (_canceller.Token.IsCancellationRequested)
                                 {
                                     breakloop = true;
-                                    SetTextDEDConsole("Process terminated by user (\"Abort\" pressed). \r\n");
+                                    SetTextDEDConsole("Process terminated by user (\"Abort\" pressed).");
                                     break;
                                 }
+
                             }
+                            _canceller.Dispose();
+                        });
 
-                        }
-                        _canceller.Dispose();
-                    });
+                        watch.Stop();
 
-                    watch.Stop();
+                        SetTextDEDConsole($"Scan complete! Total time is {watch.ElapsedMilliseconds / 1000} s");
 
-                    SetTextDEDConsole($"Scan complete! Total time is {watch.ElapsedMilliseconds / 1000} s");
-                    MessageBox.Show("Scan complete!", "Scan Complete", MessageBoxButtons.OK);
-                    //progressBarScan.Value = 0;
+
+                        MessageBox.Show($"Scan complete!", "Scan Complete", MessageBoxButtons.OK);
+                        //progressBarScan.Value = 0;
+                    }
+
+                    else
+                        MessageBox.Show("Error!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 else
-                    MessageBox.Show("Error!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                {
+                    MessageBox.Show($"Error: Your have not setup the grid yet. Please set the grid first!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             else
             {
@@ -2373,8 +2051,7 @@ namespace ZeissTrial
 
             ButtonCoordsSet = true;
 
-            textBoxDEDConsole.Text += "Button to click: " + PositionButton.ToString();
-            textBoxDEDConsole.Text += "\r\n";
+            SetTextDEDConsole($"Button to click: {PositionButton}");
         }
 
 
@@ -2382,6 +2059,13 @@ namespace ZeissTrial
         {
 
         }
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Portability", "CA1901:PInvokeDeclarationsShouldBePortable", MessageId = "4")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Portability", "CA1901:PInvokeDeclarationsShouldBePortable", MessageId = "3")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1060:MovePInvokesToNativeMethodsClass")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Portability", "CA1901:PInvokeDeclarationsShouldBePortable", MessageId = "0")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Portability", "CA1901:PInvokeDeclarationsShouldBePortable", MessageId = "2")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Portability", "CA1901:PInvokeDeclarationsShouldBePortable", MessageId = "1")]
         [DllImport("user32.dll", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         public static extern void mouse_event(long dwFlags, long dx, long dy, long cButtons, long dwExtraInfo);
         private const int MOUSEEVENTF_LEFTDOWN = 0x02;
@@ -2393,7 +2077,7 @@ namespace ZeissTrial
         {
             //perform click            
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-            Thread.Sleep(100);
+            Thread.Sleep(50);
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
         }
 
@@ -2404,6 +2088,892 @@ namespace ZeissTrial
             Thread.Sleep(mouseclickwait);
             DoMouseClick();
             Thread.Sleep(waittime);
+        }
+
+        public bool GUIon = false;
+
+        private async void buttonStartDEDGUI_Click(object sender, EventArgs e)
+        {
+
+
+            string filename = @"C:\Users\tianbi\Documents\DED_script_new\DED_GUI_Trial.py";
+
+            await TaskEx.Run(() =>
+            {
+                Process p = new Process();
+                p.StartInfo = new ProcessStartInfo(py37path, filename)
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    //Arguments = string.Format("D:\\script\\test.py -a {0} -b {1} ", "some param", "some other param")
+                    //Arguments = $"\"{filename}\"\"{ded_threshold}\"\"{ded_bias}\"\"{int_framecount}\"\"{int_frametime}\"\"{identifier}\"\""
+                    Arguments = string.Format("{0}", filename)
+                };
+                p.Start();
+                GUIon = true;
+
+                SetTextDEDConsole("DED GUI window opened.\n");
+
+                textBoxGUIStatus.Invoke(new Action(() =>
+                {
+                    textBoxGUIStatus.Text = "GUI on";
+                    textBoxGUIStatus.BackColor = Color.ForestGreen;
+                }));
+
+                string output = p.StandardOutput.ReadToEnd();
+                string error = p.StandardError.ReadToEnd();
+                p.WaitForExit();
+
+                SetTextDEDConsole(error);
+                SetTextDEDConsole(output);
+                SetTextDEDConsole("DED GUI window closed.\n");
+                GUIon = false;
+                textBoxGUIStatus.Invoke(new Action(() =>
+                {
+                    textBoxGUIStatus.Text = "GUI off";
+                    textBoxGUIStatus.BackColor = Color.Red;
+                }));
+            });
+
+            
+        }
+
+        private void buttonStartFakeGUI_Click(object sender, EventArgs e)
+        {
+            if (!GUIon)
+            {
+                GUIon = true;
+                textBoxGUIStatus.Invoke(new Action(() =>
+                {
+                    textBoxGUIStatus.Text = "Fake GUI on";
+                    textBoxGUIStatus.BackColor = Color.ForestGreen;
+                    SetTextDEDConsole("Using fake GUI for debugging...");
+                }));
+            }
+
+            else
+            {
+                GUIon = false;
+                textBoxGUIStatus.Invoke(new Action(() =>
+                {
+                    textBoxGUIStatus.Text = "GUI off";
+                    textBoxGUIStatus.BackColor = Color.Red;
+                    SetTextDEDConsole("Fake GUI off.");
+                }));
+            }
+                
+            
+        }
+
+        private void buttonWriteDEDConsoleLog_Click(object sender, EventArgs e)
+        {
+            string filepath = textBoxDEDDirectory.Text;
+            string filename = "logfile.txt";
+
+            string fullfilename = filepath + "\\" + filename;
+
+            File.WriteAllText(fullfilename, textBoxDEDConsole.Text);
+
+            SetTextDEDConsole($"Log file written to: {fullfilename}");
+
+        }
+
+        private void buttonReadSpotPosn_Click(object sender, EventArgs e)
+        {
+            if (apiInitialised)
+            {
+                object XPos = new VariantWrapper((float)0.0f);
+                object YPos = new VariantWrapper((float)0.0f);
+
+                object varStr = new VariantWrapper("");
+
+                long lReplySpot = CZEMApi.Get("DP_SPOT", ref varStr);
+
+                if (lReplySpot!= 0)
+                {
+                    MessageBox.Show("Cannot get spot mode status.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ReportError(lReplySpot, "Read Spot Mode", "buttonReadSpotPosn");
+                    return;
+                }
+
+                string spotmode = varStr.ToString();
+
+                if(spotmode != "On")
+                {
+                    MessageBox.Show("Please turn on spot mode first!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+
+                long lReplyX = CZEMApi.Get("AP_SPOT_POSN_X", ref XPos);
+                long lReplyY = CZEMApi.Get("AP_SPOT_POSN_Y", ref YPos);
+
+                if (lReplyX == 0 && lReplyY == 0)
+                {
+                    string spot_position = $"({XPos}, {YPos})";
+                    textBoxSpotPosn.Text = spot_position;
+                }
+                else
+                {
+                    MessageBox.Show("Cannot get spot positions.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ReportError(lReplyX, "Get", "buttonReadSpotPosn");
+                    ReportError(lReplyY, "Get", "buttonReadSpotPosn");
+                    return;
+                }
+            }
+            else
+                MessageBox.Show("Remote API not initialised.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void buttonEnvPrint_Click(object sender, EventArgs e)
+        {
+            string all_paths = Environment.GetEnvironmentVariable("Path");
+
+            string[] paths = all_paths.Split(new char[1] { Path.PathSeparator });
+
+            foreach (string s in paths)
+            {
+                if (s.Contains("Python37") && !s.Contains("Scripts"))
+                    SetTextSetNotify(s);
+            }
+            
+        }
+
+        private void buttonWriteSEMLog_Click(object sender, EventArgs e)
+        {
+            List<string> params_array = new List<string>();
+
+            object ChamberVac = new VariantWrapper("");
+            object GunVac = new VariantWrapper("");
+
+            long lReplyChamberVac = CZEMApi.Get("AP_CHAMBER_PRESSURE", ref ChamberVac);
+            long lReplyGunVac = CZEMApi.Get("AP_COLUMN_VAC", ref GunVac);
+            
+            params_array.Add("Chamber Vacuum " + ChamberVac);
+            params_array.Add("Gun Vacuum " + GunVac.ToString());
+            params_array.Add(textBoxIprobe.Text);
+            params_array.Add(textBoxApertureSize.Text);
+
+            string paramsfilename = Path.Combine(textBoxDEDDirectory.Text, "SEM_Parameters.txt");
+
+
+            try
+            {
+                File.WriteAllLines(paramsfilename, params_array);
+            }
+            catch (IOException)
+            {
+                MessageBox.Show($"Error: the input directory is invalid. This is usually because you don't have the required" +
+                    $"reading or writing privileges. Please avoid hard disk root directories (e.g. C:/).",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+                //throw new System.FormatException("The input format for one of the range parameters is wrong");
+            }
+
+            MessageBox.Show($"Parameters saved to {paramsfilename}", "File Saved");
+        }
+
+        public int[] SampleID_array;
+        public int[] RandID_array;
+        public int[] XCoord_array;
+        public int[] YCoord_array;
+
+        public static Random rng = new Random();
+        public bool RandGridReady = false;
+        public bool RegGridReady = false;
+        public bool SpacedGridReady = false;
+
+        public void buttonGenRandGrid_Click(object sender, EventArgs e)
+        {
+            object vMinValueX = new VariantWrapper((float)0.0f);
+            object vMaxValueX = new VariantWrapper((float)0.0f);
+            object vMinValueY = new VariantWrapper((float)0.0f);
+            object vMaxValueY = new VariantWrapper((float)0.0f);
+            object vValueMag = new VariantWrapper((float)0.0f);
+            object vValueSpotSize = new VariantWrapper((float)0.0f);
+
+            // Get parameter limits numeric values 
+            long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
+            long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
+            long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
+            long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
+            int vValueX_Min = int.Parse(vMinValueX.ToString());
+            int vValueY_Min = int.Parse(vMinValueY.ToString());
+            int vValueX_Max = int.Parse(vMaxValueX.ToString());
+            int vValueY_Max = int.Parse(vMaxValueY.ToString());
+            try
+            {
+                int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
+                int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
+                int InputXMaxCheck = int.Parse(textBoxDEDSelectedXMax.Text);
+                int InputYMaxCheck = int.Parse(textBoxDEDSelectedYMax.Text);
+
+                if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
+                {
+                    MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
+                        $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+            catch (System.FormatException)
+            {
+                MessageBox.Show($"Error: Your inputs are invalid. X must be within {vValueX_Min} and {vValueX_Max}," +
+                        $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+                //throw new System.FormatException("The input format for one of the range parameters is wrong");
+            }
+
+            int InputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
+            int InputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
+            int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+            int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+
+            int XSpan = (InputXMax - InputXMin + 1);
+            int YSpan = (InputYMax - InputYMin + 1);
+            int total_points = XSpan * YSpan;
+
+            SampleID_array = Enumerable.Range(0, total_points).ToArray();
+            RandID_array = SampleID_array.OrderBy(a => rng.Next()).ToArray();
+
+            int[] XCoord_array_a = new int[total_points];
+            int[] YCoord_array_a = new int[total_points];
+
+
+            string randscanfile = $"RandGridSeq.txt";
+            string randscanfilename = Path.Combine(textBoxFrameGrabDirectory.Text, randscanfile); ;
+            string[] RandID_output = RandID_array.Select(i => i.ToString()).ToArray();
+
+            foreach (int i in SampleID_array)
+            {
+                XCoord_array_a[i] = InputXMin + (RandID_array[i] % (XSpan));
+                YCoord_array_a[i] = InputYMin + (RandID_array[i] / (XSpan));
+                //SetTextDEDConsole($"{SampleID_array[i]},{RandID_array[i]},{XCoord_array_a[i]},{YCoord_array_a[i]}");
+
+                string outputstring = $"{i},{ RandID_output[i]},{ XCoord_array_a[i]},{ YCoord_array_a[i]}\n";
+                File.AppendAllText(randscanfilename, outputstring);
+            }
+
+            XCoord_array = XCoord_array_a;
+            YCoord_array = YCoord_array_a;
+
+            MessageBox.Show($"Random grid scan sequence generated and saved to {randscanfilename}. You may start the scan.", "Grid Generated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            string DEDGridCoords = $"(X: {InputXMin}--{InputXMax}, Y: {InputYMin}--{InputYMax})";
+
+            textBoxDEDGridRand.Text = "Random grid scan path set.";
+            textBoxDEDGridReg.Text = "Not set.";
+            textBoxDEDGridCoords.Text = DEDGridCoords;
+
+            RandGridReady = true;
+            RegGridReady = false;
+
+        }
+
+        private void buttonGenRegGrid_Click(object sender, EventArgs e)
+        {
+            object vMinValueX = new VariantWrapper((float)0.0f);
+            object vMaxValueX = new VariantWrapper((float)0.0f);
+            object vMinValueY = new VariantWrapper((float)0.0f);
+            object vMaxValueY = new VariantWrapper((float)0.0f);
+            object vValueMag = new VariantWrapper((float)0.0f);
+            object vValueSpotSize = new VariantWrapper((float)0.0f);
+
+            // Get parameter limits numeric values 
+            long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
+            long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
+            long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
+            long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
+            int vValueX_Min = int.Parse(vMinValueX.ToString());
+            int vValueY_Min = int.Parse(vMinValueY.ToString());
+            int vValueX_Max = int.Parse(vMaxValueX.ToString());
+            int vValueY_Max = int.Parse(vMaxValueY.ToString());
+            try
+            {
+                int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
+                int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
+                int InputXMaxCheck = int.Parse(textBoxDEDSelectedXMax.Text);
+                int InputYMaxCheck = int.Parse(textBoxDEDSelectedYMax.Text);
+
+                if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
+                {
+                    MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
+                        $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+            catch (System.FormatException)
+            {
+                MessageBox.Show($"Error: Your inputs are invalid. X must be within {vValueX_Min} and {vValueX_Max}," +
+                        $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+                //throw new System.FormatException("The input format for one of the range parameters is wrong");
+            }
+
+            int InputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
+            int InputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
+            int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+            int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+
+            int XSpan = (InputXMax - InputXMin + 1);
+            int YSpan = (InputYMax - InputYMin + 1);
+            int total_points = XSpan * YSpan;
+
+            SampleID_array = Enumerable.Range(0, total_points).ToArray();
+
+            int[] XCoord_array_a = new int[total_points];
+            int[] YCoord_array_a = new int[total_points];
+
+
+            string randscanfile = $"RegGridSeq.txt";
+            string randscanfilename = Path.Combine(textBoxFrameGrabDirectory.Text, randscanfile); ;
+
+            foreach (int i in SampleID_array)
+            {
+                XCoord_array_a[i] = InputXMin + (SampleID_array[i] % (XSpan));
+                YCoord_array_a[i] = InputYMin + (SampleID_array[i] / (XSpan));
+                //SetTextDEDConsole($"{SampleID_array[i]},{XCoord_array_a[i]},{YCoord_array_a[i]}");
+                //string outputstring = $"{i},{ XCoord_array_a[i]},{ YCoord_array_a[i]}\n";
+                //File.AppendAllText(randscanfilename, outputstring);
+            }
+
+            XCoord_array = XCoord_array_a;
+            YCoord_array = YCoord_array_a;
+
+            MessageBox.Show($"Regular grid scan sequence generated and saved to {randscanfilename}. You may start the scan.", "Grid Generated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            string DEDGridCoords = $"(X: {InputXMin}--{InputXMax}, Y: {InputYMin}--{InputYMax})";
+
+            textBoxDEDGridReg.Text = "Regular grid scan path is set.";
+            textBoxDEDGridRand.Text = "Not set.";
+            textBoxDEDGridCoords.Text = DEDGridCoords;
+
+            RegGridReady = true;
+            RandGridReady = false;
+            SpacedGridReady = false;
+        }
+
+        public async void buttonRandGridScan_Click(object sender, EventArgs e)
+        {
+            if (apiInitialised)
+            {
+                if (RandGridReady)
+                {
+
+                    if (!ButtonCoordsSet)
+                    {
+                        MessageBox.Show($"Error: mouse coordinates not set!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    if (!GUIon)
+                    {
+                        MessageBox.Show($"Error: please start the DED GUI first!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    DialogResult resinit = MessageBox.Show($"This module will perform the TKD/EBSD scan by moving the spot in this application " +
+                        $"and control the DED in another application by mouse click. You need to set the mouse click position using the \"Read coordinates\" button above " +
+                        $"and provide the start and end spot positions in the textboxes below. \r\nPress OK to continue or cancel to exit.", "Confirm Scan", MessageBoxButtons.OKCancel);
+                    if (resinit == DialogResult.Cancel)
+                        return;
+
+                    object vMinValueX = new VariantWrapper((float)0.0f);
+                    object vMaxValueX = new VariantWrapper((float)0.0f);
+                    object vMinValueY = new VariantWrapper((float)0.0f);
+                    object vMaxValueY = new VariantWrapper((float)0.0f);
+                    object vValueMag = new VariantWrapper((float)0.0f);
+                    object vValueSpotSize = new VariantWrapper((float)0.0f);
+
+                    // Get parameter limits numeric values 
+                    long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
+                    long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
+                    long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
+                    long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
+                    int vValueX_Min = int.Parse(vMinValueX.ToString());
+                    int vValueY_Min = int.Parse(vMinValueY.ToString());
+                    int vValueX_Max = int.Parse(vMaxValueX.ToString());
+                    int vValueY_Max = int.Parse(vMaxValueY.ToString());
+
+                    try
+                    {
+                        int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
+                        int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
+                        int InputXMaxCheck = int.Parse(textBoxDEDSelectedXMax.Text);
+                        int InputYMaxCheck = int.Parse(textBoxDEDSelectedYMax.Text);
+
+                        if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
+                        {
+                            MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
+                                $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                    }
+                    catch (System.FormatException)
+                    {
+                        MessageBox.Show($"Error: Your inputs are invalid. X must be within {vValueX_Min} and {vValueX_Max}," +
+                                $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                        //throw new System.FormatException("The input format for one of the range parameters is wrong");
+                    }
+
+                    int InputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
+                    int InputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
+                    int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+                    int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+
+                    int total_points = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
+
+                    if ((ZeissErrorCode)lReplyX == ZeissErrorCode.API_E_NO_ERROR && (ZeissErrorCode)lReplyY == ZeissErrorCode.API_E_NO_ERROR)
+                    {
+                        DialogResult res = MessageBox.Show($"Frame Size X-Y: {InputXMax - InputXMin + 1}x{InputYMax - InputYMin + 1}. Magnification= {vValueMag}, pixel/step size ={vValueSpotSize} m." +
+                            $" \n Random grid scan will start in 1 seconds after clicking OK. Please check SmartSEM window.", "Confirm Scan", MessageBoxButtons.OKCancel);
+                        if (res == DialogResult.Cancel)
+                            return;
+
+                        Thread.Sleep(1000);
+                        // Progress bar control
+                        progressBarScan.Visible = true;
+                        progressBarScan.Minimum = 0;
+                        progressBarScan.Maximum = (InputXMax - InputXMin + 1) * (InputYMax - InputYMin + 1);
+                        progressBarScan.Value = 0;
+                        progressBarScan.Step = 1;
+
+                        string directory = textBoxDEDDirectory.Text;
+                        int wait_time = Convert.ToInt32(numericUpDownClickWait.Value * 1000); //miliseconds
+
+                        _canceller = new CancellationTokenSource();
+                        bool breakloop = false;
+
+                        SetTextSetNotify("Selected area scan with DED capture (mouse click) started.");
+
+                        var watch = new Stopwatch();
+                        watch.Start();
+
+                        await TaskEx.Run(() =>
+                        {
+
+                            for (int ID = 0; ID <= total_points - 1; ID++)
+                            {
+                                if (breakloop)
+                                    break;
+
+                                string identifier = "Spot" + RandID_array[ID].ToString();
+
+                                object XPos = new VariantWrapper(XCoord_array[ID].ToString());
+                                object YPos = new VariantWrapper(YCoord_array[ID].ToString());
+
+                                long lReply_XPos = CZEMApi.Set("AP_SPOT_POSN_X", ref XPos);
+                                long lReply_YPos = CZEMApi.Set("AP_SPOT_POSN_Y", ref YPos);
+
+                                if (lReply_YPos != 0 || lReply_XPos != 0)
+                                {
+                                    ReportError(lReply_YPos, "XYBeamScan_Set", "Set Value");
+                                    breakloop = true;
+                                    SetTextDEDConsole("Process terminated due to error.");
+                                    break;
+                                }
+
+                                SetTextDEDConsole($"Capturing {identifier}");
+
+                                ClickPosition(PositionButton, wait_time);
+
+                                Thread.Sleep(500);
+
+                                SetTextDEDConsole($"Spot {ID + 1}/{total_points} done!");
+
+                                progressBarScan.Invoke(new Action(() =>
+                                {
+                                    progressBarScan.PerformStep();
+                                }));
+
+                                if (_canceller.Token.IsCancellationRequested)
+                                {
+                                    breakloop = true;
+                                    SetTextDEDConsole("Process terminated by user (\"Abort\" pressed).");
+                                    break;
+                                }
+
+                            }
+                            _canceller.Dispose();
+                        });
+
+                        watch.Stop();
+
+                        SetTextDEDConsole($"Scan complete! Total time is {watch.ElapsedMilliseconds / 1000} s");
+
+                        
+                        MessageBox.Show($"Scan complete!", "Scan Complete", MessageBoxButtons.OK);
+                        //progressBarScan.Value = 0;
+                    }
+
+                    else
+                        MessageBox.Show("Error!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else
+                {
+                    MessageBox.Show($"Error: Your have not setup the random grid sequence yet. Please set the grid first!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Remote API not initialised.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void buttonSeriesGrabIndexReset_Click(object sender, EventArgs e)
+        {
+            numericUpDownSeriesGrab.Value = 1;
+        }
+
+        private async void buttonSeriesGrab_Click(object sender, EventArgs e)
+        {
+            if (apiInitialised)
+            {
+                // You can save as Bitmap or Tiff but not JPEG
+                // Tiff has the Zeiss header with acquisition param info
+
+                // Construct file name based on series name and index
+                string ImageFileName = textBoxSeriesGrabName.Text + "_" + numericUpDownSeriesGrab.Value.ToString() + ".tiff";
+                string strFileName = Path.Combine(textBoxFrameGrabDirectory.Text, ImageFileName);
+
+                object unfreezestate = new VariantWrapper("Live");
+
+                long lreplysetunfreeze = CZEMApi.Set("DP_FROZEN", ref unfreezestate);
+                ReportError(lreplysetunfreeze, "SeriesGrab", "Set Unfrozen");
+
+                // Set scan rate = 9 and line integral, set freeze = end of frame
+                // This should unfreeze the frame and continue the scan
+                long lreplyscanrate = CZEMApi.Execute("CMD_SCANRATE7");
+                long lreplylineint = CZEMApi.Execute("CMD_LINE_INT");
+
+                //check if variantwrapper is required for 0 and 4 for the following
+
+                object freezestate = new VariantWrapper("End Frame");
+                long lreplyfreeze = CZEMApi.Set("DP_FREEZE_ON", freezestate); // this may not be necessary, chech first
+
+                double lineint64 = 4;
+                object lineintnum = new VariantWrapper(lineint64.ToString());
+                long lreplylineintnum = CZEMApi.Set("AP_NR_COEFF", lineintnum);
+
+                // report if error
+                if (lreplyscanrate != 0 || lreplylineint != 0 || lreplyfreeze != 0 || lreplylineintnum != 0)
+                {
+                    ReportError(lreplyscanrate, "SeriesGrab", "Scan rate");
+                    ReportError(lreplylineint, "SeriesGrab", "Line integral");
+                    ReportError(lreplyfreeze, "SeriesGrab", "freeze state");
+                    ReportError(lreplylineintnum, "SeriesGrab", "Line integral number");
+                    return;
+                }
+
+                // Read frame time in miliseconds - this goes directly to Thread.Sleep() which takes time in miliseconds.
+                object vValueFrameTime = new VariantWrapper((float)0.0f);
+                long lReplyFrameTime = CZEMApi.Get("AP_FRAME_TIME", ref vValueFrameTime);
+
+                // Report if error
+                if (lReplyFrameTime != 0)
+                {
+                    ReportError(lReplyFrameTime, "SeriesGrab", "Get frame time");
+                    return;
+                }
+
+                float frametimefloat = float.Parse(vValueFrameTime.ToString());
+                // Convert to integer
+
+                int frametime = (int)Math.Round(frametimefloat, 0) + 3 * 1000; //set wait time as frame time + 20 s for enough maneuver time
+
+                await TaskEx.Run(() =>
+                {
+                    SetTextSetNotify($"Image capturing in progress... please wait for {frametime / 1000} seconds.");
+
+                    // wait for frame time
+                    Thread.Sleep(frametime);
+
+                    if (_canceller.Token.IsCancellationRequested)
+                    {
+                        SetTextDEDConsole("Process terminated by user (\"Abort\" pressed).");
+                        return;
+                    }
+
+                    // Conduct frame grab
+                    SEMFrameCapture(strFileName);
+                    // Generate output in the console and refresh
+                    SetTextSetNotify($"Image grabbed to: {ImageFileName}.");
+
+                    // Update the index counter
+                    numericUpDownSeriesGrab.Value += 1;
+                    numericUpDownSeriesGrab.Refresh();
+
+                    _canceller.Dispose();
+                });
+            }
+            else
+                MessageBox.Show("API not initialised.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void buttonGridReset_Click(object sender, EventArgs e)
+        {
+            RandGridReady = false;
+            RegGridReady = false;
+            SpacedGridReady = false;
+
+            SampleID_array = new int[0];
+            RandID_array = new int[0];
+            XCoord_array = new int[0];
+            YCoord_array = new int[0];
+
+            textBoxDEDGridReg.Text = "Not set.";
+            textBoxDEDGridRand.Text = "Not set.";
+            textBoxDEDGridCoords.Text = "Not set.";
+            textBoxDEDGridSpaced.Text = "Not set.";
+        }
+
+        private void buttonGenSpacedGrid_Click(object sender, EventArgs e)
+        {
+            object vMinValueX = new VariantWrapper((float)0.0f);
+            object vMaxValueX = new VariantWrapper((float)0.0f);
+            object vMinValueY = new VariantWrapper((float)0.0f);
+            object vMaxValueY = new VariantWrapper((float)0.0f);
+            object vValueMag = new VariantWrapper((float)0.0f);
+            object vValueSpotSize = new VariantWrapper((float)0.0f);
+
+            // Get parameter limits numeric values 
+            long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
+            long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
+            long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
+            long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
+            int vValueX_Min = int.Parse(vMinValueX.ToString());
+            int vValueY_Min = int.Parse(vMinValueY.ToString());
+            int vValueX_Max = int.Parse(vMaxValueX.ToString());
+            int vValueY_Max = int.Parse(vMaxValueY.ToString());
+            
+            try
+            {
+                int InputXMinCheck = int.Parse(textBoxDEDSelectedXMin.Text);
+                int InputYMinCheck = int.Parse(textBoxDEDSelectedYMin.Text);
+                int vValueXSpaceCheck = int.Parse(textBoxXGridSpacing.Text);
+                int vValueYSpaceCheck = int.Parse(textBoxYGridSpacing.Text);
+                int vValueXPointsCheck = int.Parse(textBoxXSpacingNum.Text);
+                int vValueYPointsCheck = int.Parse(textBoxYSpacingNum.Text);
+
+                int InputXMaxCheck = InputXMinCheck + vValueXSpaceCheck * (vValueXPointsCheck - 1);
+                int InputYMaxCheck = InputYMinCheck + vValueYSpaceCheck * (vValueYPointsCheck - 1);
+
+                if (InputXMinCheck < vValueX_Min || InputYMinCheck < vValueY_Min || InputXMaxCheck > vValueX_Max || InputYMaxCheck > vValueY_Max)
+                {
+                    MessageBox.Show($"Error: Please check your limit inputs. X must be within {vValueX_Min} and {vValueX_Max}," +
+                        $"and Y must be within {vValueY_Min} and {vValueY_Max}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+            catch (System.FormatException)
+            {
+                MessageBox.Show($"Error: Your input have invalid characters", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+                //throw new System.FormatException("The input format for one of the range parameters is wrong");
+            }
+
+            int InputXMin = int.Parse(textBoxDEDSelectedXMin.Text);
+            int InputYMin = int.Parse(textBoxDEDSelectedYMin.Text);
+            int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+            int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+            int vValueXSpace = int.Parse(textBoxXGridSpacing.Text);
+            int vValueYSpace = int.Parse(textBoxYGridSpacing.Text);
+            int vValueXPoints = int.Parse(textBoxXSpacingNum.Text);
+            int vValueYPoints = int.Parse(textBoxYSpacingNum.Text);
+
+            int total_points = vValueXPoints * vValueYPoints;
+
+            SampleID_array = Enumerable.Range(0, total_points).ToArray();
+
+            int[] XCoord_array_a = new int[total_points];
+            int[] YCoord_array_a = new int[total_points];
+
+
+            string randscanfile = $"SpacedGridSeq.txt";
+            string randscanfilename = Path.Combine(textBoxDEDDirectory.Text, randscanfile); ;
+
+            foreach (int i in SampleID_array)
+            {
+                XCoord_array_a[i] = InputXMin + (SampleID_array[i] % (vValueXPoints) * vValueXSpace);
+                YCoord_array_a[i] = InputYMin + (SampleID_array[i] / (vValueXPoints) * vValueYSpace);
+                //SetTextDEDConsole($"{SampleID_array[i]},{XCoord_array_a[i]},{YCoord_array_a[i]}");
+                //string outputstring = $"{i},{ XCoord_array_a[i]},{ YCoord_array_a[i]}\n";
+                //File.AppendAllText(randscanfilename, outputstring);
+            }
+
+            XCoord_array = XCoord_array_a;
+            YCoord_array = YCoord_array_a;
+
+            MessageBox.Show($"Regular grid scan sequence generated. You may start the scan.", "Grid Generated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // and saved to {randscanfilename}
+
+            string DEDGridCoords = $"X: {InputXMin}, space={vValueXSpace}, Y: {InputYMin}, space={vValueYSpace}, {vValueXPoints}x{vValueYPoints}";
+
+            textBoxDEDGridReg.Text = "Not set.";
+            textBoxDEDGridRand.Text = "Not set.";
+            textBoxDEDGridSpaced.Text = DEDGridCoords;
+
+            SpacedGridReady = true;
+            RegGridReady = false;
+            RandGridReady = false;
+        }
+
+        private async void buttonSpacedGridScan_Click(object sender, EventArgs e)
+        {
+            // This function performs beam scan and DED capture over a user defined pixel grid. 
+            // Limits of the grid and DED parameters are read from user input in text boxes.
+
+            if (apiInitialised)
+            {
+                if (SpacedGridReady)
+                {
+
+                    if (!ButtonCoordsSet)
+                    {
+                        MessageBox.Show($"Error: mouse coordinates not set!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    if (!GUIon)
+                    {
+                        MessageBox.Show($"Error: please start the DED GUI first!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    DialogResult resinit = MessageBox.Show($"This module will perform the TKD/EBSD scan by moving the spot in this application " +
+                        $"and control the DED in another application by mouse click. You need to set the mouse click position using the \"Read coordinates\" button above " +
+                        $"and provide the start and end spot positions in the textboxes below. \r\nPress OK to continue or cancel to exit.", "Confirm Scan", MessageBoxButtons.OKCancel);
+                    if (resinit == DialogResult.Cancel)
+                        return;
+
+                    object vMinValueX = new VariantWrapper((float)0.0f);
+                    object vMaxValueX = new VariantWrapper((float)0.0f);
+                    object vMinValueY = new VariantWrapper((float)0.0f);
+                    object vMaxValueY = new VariantWrapper((float)0.0f);
+                    object vValueMag = new VariantWrapper((float)0.0f);
+                    object vValueSpotSize = new VariantWrapper((float)0.0f);
+
+                    // Get parameter limits numeric values 
+                    long lReplyX = CZEMApi.GetLimits("AP_SPOT_POSN_X", ref vMinValueX, ref vMaxValueX);
+                    long lReplyY = CZEMApi.GetLimits("AP_SPOT_POSN_Y", ref vMinValueY, ref vMaxValueY);
+                    long lReplyMag = CZEMApi.Get("AP_MAG", ref vValueMag);
+                    long lReplySpotSize = CZEMApi.Get("AP_PIXEL_SIZE", ref vValueSpotSize);
+
+                    int InputXMax = int.Parse(textBoxDEDSelectedXMax.Text);
+                    int InputYMax = int.Parse(textBoxDEDSelectedYMax.Text);
+                    int vValueXPoints = int.Parse(textBoxXSpacingNum.Text);
+                    int vValueYPoints = int.Parse(textBoxYSpacingNum.Text);
+
+                    int total_points = vValueXPoints * vValueYPoints;
+
+                    if ((ZeissErrorCode)lReplyX == ZeissErrorCode.API_E_NO_ERROR && (ZeissErrorCode)lReplyY == ZeissErrorCode.API_E_NO_ERROR)
+                    {
+                        DialogResult res = MessageBox.Show(textBoxDEDGridSpaced.Text, "Confirm Scan", MessageBoxButtons.OKCancel);
+                        if (res == DialogResult.Cancel)
+                            return;
+
+                        Thread.Sleep(1000);
+                        // Progress bar control
+                        progressBarScan.Visible = true;
+                        progressBarScan.Minimum = 0;
+                        progressBarScan.Maximum = total_points;
+                        progressBarScan.Value = 0;
+                        progressBarScan.Step = 1;
+
+                        string directory = textBoxDEDDirectory.Text;
+                        int wait_time = Convert.ToInt32(numericUpDownClickWait.Value * 1000); //miliseconds
+
+                        _canceller = new CancellationTokenSource();
+                        bool breakloop = false;
+
+                        SetTextSetNotify("Selected area scan with DED capture (mouse click) started.");
+
+                        var watch = new Stopwatch();
+                        watch.Start();
+
+                        await TaskEx.Run(() =>
+                        {
+
+                            for (int ID = 0; ID <= total_points - 1; ID++)
+                            {
+                                if (breakloop)
+                                    break;
+
+                                string identifier = "Spot" + SampleID_array[ID].ToString();
+
+                                object XPos = new VariantWrapper(XCoord_array[ID].ToString());
+                                object YPos = new VariantWrapper(YCoord_array[ID].ToString());
+
+                                long lReply_XPos = CZEMApi.Set("AP_SPOT_POSN_X", ref XPos);
+                                long lReply_YPos = CZEMApi.Set("AP_SPOT_POSN_Y", ref YPos);
+
+                                if (lReply_YPos != 0 || lReply_XPos != 0)
+                                {
+                                    ReportError(lReply_YPos, "XYBeamScan_Set", "Set Value");
+                                    breakloop = true;
+                                    SetTextDEDConsole("Process terminated due to error.");
+                                    break;
+                                }
+
+
+                                SetTextDEDConsole($"Capturing {identifier}");
+
+                                ClickPosition(PositionButton, wait_time);
+
+                                Thread.Sleep(500);
+
+                                SetTextDEDConsole($"Spot {ID + 1}/{total_points} done!");
+
+                                progressBarScan.Invoke(new Action(() =>
+                                {
+                                    progressBarScan.PerformStep();
+                                }));
+
+                                if (_canceller.Token.IsCancellationRequested)
+                                {
+                                    breakloop = true;
+                                    SetTextDEDConsole("Process terminated by user (\"Abort\" pressed).");
+                                    break;
+                                }
+
+                            }
+                            _canceller.Dispose();
+                        });
+
+                        watch.Stop();
+
+                        SetTextDEDConsole($"Scan complete! Total time is {watch.ElapsedMilliseconds / 1000} s");
+
+
+                        MessageBox.Show($"Scan complete!", "Scan Complete", MessageBoxButtons.OK);
+                        //progressBarScan.Value = 0;
+                    }
+
+                    else
+                        MessageBox.Show("Error!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else
+                {
+                    MessageBox.Show($"Error: Your have not setup the grid yet. Please set the grid first!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Remote API not initialised.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void buttonFiledialogtrial_Click(object sender, EventArgs e)
+        {
+            CommonOpenFileDialog dialog = new CommonOpenFileDialog();
+            dialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            dialog.IsFolderPicker = true;
+            if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+            {
+                MessageBox.Show("You selected: " + dialog.FileName);
+            }
         }
     }
 
