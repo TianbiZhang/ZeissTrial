@@ -5,7 +5,7 @@ author: Tianbi
 
 # ZeissTrial Document
 
-Last update: October 14, 2022
+Last update: November 20, 2023
 
 First draft: October 13, 2022
 
@@ -23,8 +23,8 @@ This project was directly adapted from the demo project shipped along with the S
 
 ### System requirements
 
-- This project only runs on Windows operating system. Version should be at least Windows 7.
-- The Zeiss SmartSEM programming interface (the API). I used version ().
+- This project only runs on Windows operating system. Version should be at least Windows 7. It have not been tested on Windows 11 yet!
+- The Zeiss SmartSEM programming interface (the API). This is proprietary and is not included in this repository.
 - .NET Framework version 4.0 or higher for C#. All the inclusions and packages used in the C# projects should be readily available.
 - Python 3.7.
 - Microsoft Visual Studio (VS). A free version ("VS Community") is available for download online. Note that the C# project is for VS version 2016 as the SmartSEM API is quite old.
