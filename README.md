@@ -5,7 +5,7 @@ author: Tianbi
 
 # ZeissTrial Document
 
-Last update: October 14, 2022
+Last update: November 20, 2023
 
 First draft: October 13, 2022
 
@@ -23,10 +23,9 @@ This project was directly adapted from the demo project shipped along with the S
 
 ### System requirements
 
-- This project only runs on Windows operating system. Version should be at least Windows 7.
-- The Zeiss SmartSEM programming interface (the API). I used version ().
-- .NET Framework version 4.0 or higher for C#. All the inclusions and packages used in the C# projects should be readily available.
-- Python 3.7.
+- This project only runs on Windows operating system. Version should be at least Windows 7. It have not been tested on Windows 11 yet!
+- The Zeiss SmartSEM programming interface (the API). This is proprietary and is not included in this repository.
+- .NET Framework version 4.0 or higher for C#. All the inclusions and packages used in the C# projects, except for the Zeiss SmartSEM API (proprietary), should be readily available.
 - Microsoft Visual Studio (VS). A free version ("VS Community") is available for download online. Note that the C# project is for VS version 2016 as the SmartSEM API is quite old.
 
  You will need to setup the remote connection if you want to control the SEM from another PC where you run ZeissTrial. This is relatively easy if there is a local wired network (LAN) in your SEM lab as you can connect your control PC (server) to the same network switch and manually set up its IPv4 address. The IP addresses of both the server and the clientThis is needed for  RConfigure. Once this is set, you should be ready to establish the remote connection.
@@ -37,11 +36,11 @@ The ZeissTrial Async flavour of the software is the original version developed b
 
 ### The Graphical Interface
 
-An overview of the GUI is shown below. (add screenshot)
+An overview of the GUI is shown below.
 
 ### Initialization and Closing Control
 
-Once the remote connection is set (unnecessary if you run SmartSEM as an emulator), the API interface should be initialized first. Click "Initialize API" if running locally (emulator), or "Initialize Remote" if running remotely. No SEM-related commands can be excecuted if the API is not initialized, and a error message box will pop up. Note that if you initialize the local API, the "Initialize Remote" button will gray out. A message box will pop up and indicate whether the API has been correctly initialized, and the first parameter in the parameter/status zone will show "Initialized" instead of "Not Initialized" with a red background.
+Once the remote connection is set (unnecessary if you run SmartSEM locally as an emulator), the API interface should be initialized first. Click "Initialize API" if running locally (emulator), or "Initialize Remote" if running remotely. No SEM-related commands can be excecuted if the API is not initialized, and a error message box will pop up. Note that if you initialize the local API, the "Initialize Remote" button will gray out. A message box will pop up and indicate whether the API has been correctly initialized, and the first parameter in the parameter/status zone will show "Initialized" instead of "Not Initialized" with a red background.
 
 If you would like to close the program, or temporarily stop excution of SEM-related commands, you should click "Close Control" first. This closes the API. You can then resume your operations by initializing again, or quit the program by clicking "Quit".
 
