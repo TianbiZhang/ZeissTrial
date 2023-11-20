@@ -5,6 +5,8 @@ author: Tianbi
 
 # ZeissTrial Document
 
+[![DOI](https://zenodo.org/badge/551646425.svg)](https://zenodo.org/doi/10.5281/zenodo.10161482)
+
 Last update: November 20, 2023
 
 First draft: October 13, 2022
